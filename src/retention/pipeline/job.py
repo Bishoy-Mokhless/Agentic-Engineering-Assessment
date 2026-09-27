@@ -1,6 +1,7 @@
 """The pipeline job: runs the steps in order (ingest -> curate -> metrics -> integrate -> analyse).
 
-Spring analogy: a Spring Batch Job. Steps so far: ingest (Step 2), curate (Step 3), metrics (Step 4).
+Spring analogy: a Spring Batch Job.
+Steps: ingest (Step 2), curate (Step 3), metrics (Step 4), analyse (Step 5).
 
 Curated outputs are built in data/.tmp/<run_id>/ and swapped into data/curated/ only when every
 step succeeded (D-48). If a step fails, the previous curated outputs stay exactly as they were,
@@ -16,6 +17,7 @@ from retention.client.http import SourceError
 from retention.config import Settings
 from retention.domain.errors import PipelineError
 from retention.domain.source_status import SourceState, SourceStatus
+from retention.pipeline.analyse import run_analysis
 from retention.pipeline.curate import run_curate
 from retention.pipeline.ingest import Mode, run_ingest
 from retention.pipeline.lineage import build_record, table_inputs
@@ -71,12 +73,20 @@ def run_pipeline(settings: Settings, mode: Mode) -> int:
 
         # Step: metrics (canonical -> analytical), reading the canonical tables of THIS build
         metric_tables = run_metrics(settings, curated_repo, build)
+        steps["metrics"] = _row_counts(metric_tables)
+
+        # Step: analyse (as-of join + association), reading canonical + metric tables of THIS build
+        analysis_tables = run_analysis(settings, curated_repo, build)
+        steps["analyse"] = _row_counts(analysis_tables)
+
+        # Lineage for the analytical layer: its inputs are the canonical files (with sha256).
+        analytical_tables = dict(metric_tables)
+        analytical_tables.update(analysis_tables)
         canonical_record = curated_repo.read_json(build, "canonical", "_build")
         analytical_record = build_record(
-            "analytical", run_id, started_at, table_inputs("canonical", canonical_record), metric_tables
+            "analytical", run_id, started_at, table_inputs("canonical", canonical_record), analytical_tables
         )
         curated_repo.write_json(build, "analytical", "_build", analytical_record)
-        steps["metrics"] = _row_counts(metric_tables)
 
         # All steps succeeded: make the new outputs visible.
         curated_repo.publish(build)

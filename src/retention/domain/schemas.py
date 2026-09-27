@@ -291,6 +291,68 @@ REGRETTED_TURNOVER = pa.DataFrameSchema(
 )
 
 
+# --- Analytical (Step 5) -------------------------------------------------------------------
+
+ALIGNED_OBSERVATIONS = pa.DataFrameSchema(
+    {
+        "objective_id": _text_column(),
+        "analysis_set": pa.Column(str, pa.Check.isin(["formal", "descriptive"])),
+        "grain": _text_column(),
+        "country_code": _text_column(),
+        "period": _text_column(),
+        "anchor_date": pa.Column(Date),
+        "outcome_rate": pa.Column(float, pa.Check.in_range(0, 1)),
+        "cohort_n": pa.Column(float, pa.Check.gt(0)),
+        "indicator": _text_column(),
+        "lens": _text_column(nullable=True),
+        "value": pa.Column(float, nullable=True),
+        "unit": _text_column(nullable=True),
+        "source_period": _text_column(nullable=True),
+        "source_frequency": _text_column(nullable=True),
+        "available_from": pa.Column(Date, nullable=True),
+        "age_months": pa.Column(float, pa.Check.ge(0), nullable=True),
+        "obs_status": _text_column(nullable=True),
+        "source_snapshot": _text_column(nullable=True),
+        "excluded_from_tests": pa.Column(bool),
+        "exclusion_reason": _text_column(nullable=True),
+    },
+    strict=True,
+    unique=["objective_id", "analysis_set", "grain", "country_code", "period", "indicator"],
+    # No future information: a value may only be used if it was published by the as-of date (D-28).
+    checks=pa.Check(
+        lambda table: table["available_from"].isna() | (table["available_from"] <= table["anchor_date"]),
+        error="available_from must be on or before anchor_date (no future information)",
+    ),
+)
+
+ASSOCIATION_RESULTS = pa.DataFrameSchema(
+    {
+        "objective_id": _text_column(),
+        "objective_role": pa.Column(str, pa.Check.isin(["primary", "secondary"])),
+        "label": _text_column(),
+        "indicator": _text_column(),
+        "lens": _text_column(),
+        "view": pa.Column(str, pa.Check.isin(["within_country", "pooled", "time_adjusted"])),
+        "is_formal": pa.Column(bool),
+        "rho": pa.Column(float, pa.Check.in_range(-1, 1), nullable=True),
+        "ci_low": pa.Column(float, pa.Check.in_range(-1, 1), nullable=True),
+        "ci_high": pa.Column(float, pa.Check.in_range(-1, 1), nullable=True),
+        "p_value": pa.Column(float, pa.Check.in_range(0, 1), nullable=True),
+        "p_holm": pa.Column(float, pa.Check.in_range(0, 1), nullable=True),
+        "n_rows": pa.Column(int, pa.Check.ge(0)),
+        "n_countries": pa.Column(int, pa.Check.ge(0)),
+        "countries_excluded": _text_column(),
+        "indicator_time_rho": pa.Column(float, nullable=True),
+        "distinct_indicator_values": pa.Column(int),
+        "holm_family_size": pa.Column(int),
+        "result": _text_column(),
+        "caveat": _text_column(),
+    },
+    strict=True,
+    unique=["objective_id", "indicator", "view"],
+)
+
+
 def check_contract(schema: pa.DataFrameSchema, table: pd.DataFrame, table_name: str) -> None:
     """Validate a table; on failure raise ContractError naming the table and the failing values.
 

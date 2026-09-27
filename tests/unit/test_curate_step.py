@@ -23,6 +23,7 @@ def settings(tmp_path):
     settings.paths.canonical = tmp_path / "curated" / "canonical"
     settings.paths.analytical = tmp_path / "curated" / "analytical"
     settings.paths.build_tmp = tmp_path / ".tmp"
+    settings.analysis.bootstrap_iterations = 50  # fast tests; the CI width is not asserted here
     return settings
 
 
@@ -80,6 +81,32 @@ def test_metrics_step_reproduces_the_agreed_headline_numbers(settings):
         (2025, 82, 1603, "met"),
     ]
     assert (analytical / "_build.json").exists()
+
+
+def test_association_step_runs_the_agreed_tests_without_future_information(settings):
+    """Step 5: 12 formal tests (3 objectives x 4 indicators), none clearly associated (non-finding)."""
+    assert run_pipeline(settings, "offline") == 0
+    analytical = settings.paths.analytical
+
+    aligned = analytical / "aligned_observations.parquet"
+    future = duckdb.sql(f"SELECT count(*) FROM '{aligned}' WHERE available_from > anchor_date").fetchone()[0]
+    assert future == 0
+
+    formal = duckdb.sql(
+        f"SELECT objective_id, indicator, round(rho, 2), n_rows, result "
+        f"FROM '{analytical / 'association_results.parquet'}' "
+        "WHERE is_formal ORDER BY objective_id, indicator"
+    ).fetchall()
+    assert len(formal) == 12
+    new_hire = {row[1]: (row[2], row[3]) for row in formal if row[0] == "NEW_HIRE_6M"}
+    assert new_hire == {
+        "gdp_growth": (0.0, 90),  # IE excluded (D-59)
+        "inflation": (-0.12, 108),
+        "job_vacancy": (-0.02, 108),
+        "unemployment": (-0.1, 108),
+    }
+    for row in formal:
+        assert row[4] == "The analysis did not show a clear association in this sample."
 
 
 def test_canonical_tables_are_readable_with_sql_and_typed(settings):

@@ -68,7 +68,7 @@ class AnalysisSettings(BaseModel):
     random_seed: int  # D-48: deterministic reruns
     alpha: float  # D-34
     formal_view: Literal["within_country"]  # D-54: only this view enters Holm families
-    descriptive_views: list[Literal["pooled"]]  # D-54: context only
+    descriptive_views: list[Literal["pooled", "time_adjusted"]]  # D-54, D-79: context only
     objectives: dict[str, ObjectiveAnalysis]
 
 

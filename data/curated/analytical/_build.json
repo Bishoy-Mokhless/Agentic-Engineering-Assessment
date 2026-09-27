@@ -1,7 +1,7 @@
 {
   "layer": "analytical",
-  "run_id": "run-20260927T211115Z",
-  "built_at": "2026-09-27T21:11:15+00:00",
+  "run_id": "run-20260927T213200Z",
+  "built_at": "2026-09-27T21:32:00+00:00",
   "inputs": [
     {
       "source": "canonical",
@@ -25,6 +25,16 @@
     }
   ],
   "tables": {
+    "aligned_observations": {
+      "file": "aligned_observations.parquet",
+      "rows": 1008,
+      "sha256": "269b64429d2f1fe67f7c75d43e7d922d1585b5df3095b1a33cb5450cb7987784"
+    },
+    "association_results": {
+      "file": "association_results.parquet",
+      "rows": 36,
+      "sha256": "3ecb657f5d500e50b28d03757595984d28e2f3f144d400cdc8b657e2bdce4b64"
+    },
     "hire_outcomes": {
       "file": "hire_outcomes.parquet",
       "rows": 2291,

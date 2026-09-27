@@ -98,6 +98,9 @@ This log is the source for:
 | D-76 | 13 | Status grain | Verdicts for whole period + each year; quarterly cohorts and monthly TTM are trend lines only | ✅ Yes |
 | D-77 | 13 | Segment filter | Hire-level analytical table; API aggregates with filters; official tables still precomputed | ✅ Yes |
 | D-78 | 13 | Small samples | `small_sample` warning when n < 10; values still shown | ✅ Yes |
+| D-79 | 14 | Time confounding | Formal test unchanged; add descriptive time-adjusted view + indicator-vs-time diagnostic | ✅ Yes |
+| D-80 | 14 | Row weighting in Spearman | Unweighted (each cohort row counts once); n shown; limitation stated | ✅ Yes |
+| D-81 | 14 | Git commits (change) | Agent commits and pushes after each step, once I reply OK (**supersedes D-53**) | ✏️ My own answer |
 
 ---
 
@@ -1518,6 +1521,12 @@ Text that must be copied into the final deliverables, not only kept in this log:
 - D-36 grain deviation (senior test at year grain) and D-55 exact test lists per family → `docs/methodology.md`.
 - D-56 bootstrap/dependence caveat, D-57 standard wording for unverified exits, D-58 lag wording, D-59 GDP definition and Ireland handling, D-63 language rules → `docs/methodology.md`, README, dashboard text and presentation.
 - Candidate findings spotted during previews (to be confirmed by the real pipeline): no clear indicator association for NEW_HIRE_6M (non-finding); senior 12m retention ~70–80% vs 90% target; ~~RO 2021 regretted turnover above target~~ (withdrawn, see C-01); company regretted turnover jump in 2025.
+- **Confirmed by the pipeline (Steps 4–5), for README/presentation findings:**
+  1. SENIOR_HIRE_12M **not met**: 208/266 = 78.2% [72.9%, 82.7%] vs ≥ 90%, and not met in every hire year 2021–2024.
+  2. REGRETTED_TURNOVER_12M **met every year**, but rose in 2025: 3.30% → 5.11% (46 → 82 regretted exits); 2025 country values RO 6.7%, IE 6.3%, BG 6.1%, all still ≤ 7.5% with CIs crossing the target.
+  3. NEW_HIRE_6M **inconclusive**: 87.5% [85.9%, 89.0%] vs ≥ 86%; exits in the first 6 months are mostly voluntary (148 of 225).
+  4. **Non-finding:** none of the 12 formal within-country tests shows a clear association after Holm. Turnover vs inflation had raw p = 0.03 but Holm p = 0.12, a concrete multiple-comparisons example. Unemployment trends strongly with time (ρ −0.71), so time is a plausible confounder (D-79).
+  5. **Data-health impact:** the sensitivity variants (unverified exits, UNKNOWN regretted) change no verdict.
 
 ---
 
@@ -1552,6 +1561,7 @@ Text that must be copied into the final deliverables, not only kept in this log:
 **How decision changes are recorded:** a new entry (e.g. D-60) with the evidence, marked "changes D-xx", and the original entry gets a note pointing to it. Nothing is silently rewritten.
 
 ### D-53: Git commits ✏️
+> ⛔ **Superseded by D-81 (Round 14):** the agent now commits and pushes after each approved step.
 | Option | Notes |
 |---|---|
 | Commit after each approved step ⭐ | Agent commits |
@@ -1884,6 +1894,59 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 
 ---
 
+## Round 14: Association analysis decisions (Step 5)
+
+### Evidence shown
+(Scratch preview on the real analytical and canonical tables.)
+- **As-of join reproduces Round 6:** Greece 2023-Q1 (as-of 2023-01-01) → unemployment 11.8 (2022-10, age 3 months), inflation 9.5 (2022-10), job vacancy 1.1 (2022-Q3, age 4), GDP 8.7 (2021, age 13). Ages across all 108 NEW_HIRE_6M rows: monthly always 3, quarterly always 4, GDP 10–19 months.
+- **Within-country Spearman reproduces Round 7a:** unemployment −0.10, inflation −0.12, job vacancy −0.02, GDP 0.00 (IE excluded, n = 90).
+- **Time confounding:** within each country, unemployment falls steadily over time (Spearman with time **−0.71**); inflation +0.14, job vacancy +0.19, GDP +0.21; retention vs time +0.07. Removing the common time pattern (country **and** quarter demeaned) gives −0.11, −0.03, +0.06, −0.08: no clear association either way.
+- **Unequal rows:** cohorts have 7–29 people; GDP has only 5 distinct values per country across 18 rows; BG job vacancy only 3 distinct values (ties).
+
+### D-79: Time confounding
+| Option | Notes |
+|---|---|
+| **Add a descriptive time-adjusted view + indicator-vs-time diagnostic** ⭐ ✅ | Formal test unchanged (D-54, D-55) |
+| Make the formal test time-adjusted | Removes common shocks but also most real variation; changes D-54 |
+| Caveat only | No data shown for the check |
+
+**What it means:**
+- **Confounding** = a third factor moves both things, making them look related. Here the third factor is **time**: unemployment fell in every country over 2021–2025, so any pattern between unemployment and retention could just be "things changed over the years".
+- **Time-adjusted view:** subtract each country's average *and* each period's average (across countries) before ranking. What is left is "was this country unusual *compared with the other countries in the same quarter*?" It's shown next to the formal result, labelled descriptive, not in the Holm family.
+- **Diagnostic:** each result row shows how strongly the indicator itself trends with time within countries (e.g. unemployment −0.71), so a reader sees when time is a plausible confounder.
+**Why chosen:** the brief asks to make confounding explicit. This checks it with data, without changing the agreed formal test or its Holm family.
+
+### D-80: Row weighting in the Spearman test
+| Option | Notes |
+|---|---|
+| **Unweighted; n shown; limitation stated** ⭐ ✅ | Standard Spearman: each cohort row counts once |
+| Weighted by cohort size | No standard function; custom code to explain |
+| Drop rows with n < 10 | 108 → ~64 rows; loses data and power |
+
+**What it means:** every country-quarter (or country-year) row is one data point, whether it holds 7 or 29 people. n is shown for every point, and small rows are flagged (D-78).
+**Limitation (for methodology):** a small cohort has the same influence as a large one. An employee-level model (e.g. logistic regression, a "possible later addition") would weight people rather than groups.
+
+### D-81: Git commits by the agent (supersedes D-53) ✏️
+| Option | Notes |
+|---|---|
+| **Agent commits and pushes after each step, once I reply OK** ✅ | From Step 5 onward |
+| Agent commits and pushes Step 5 only | One-off |
+| I commit Step 5; agent starts at Step 8 | — |
+
+- **Context:** after Step 5 I asked the agent to commit and push. The agent pointed out that this changes D-53 and asked me to confirm the scope first.
+- **Rule from now on:** after I approve a step, the agent runs `ruff check .`, `ruff format --check .` and `pytest`, then commits with the step's message and pushes to `origin/main`. Commit messages end with a `Co-Authored-By` line naming the AI agent, so the history shows which commits were made with its help.
+- **Why:** I have reviewed Steps 1–5 myself and the loop is stable; this saves time for the remaining steps. I still approve every step before anything is committed.
+- **AI_USAGE note:** control over the repository stays with me through the per-step approval.
+
+### Implementation choices (no question needed)
+- Value is usable when `available_from = last day of (period_end + lag months)` ≤ as-of date (D-29 example: Oct 2022 → usable from 2022-12-31). Implemented with DuckDB **ASOF JOIN** ("latest row at or before a date").
+- Bootstrap (D-56): rows are resampled **and demeaned again inside every resample**, so the interval reflects the same calculation as the estimate. 1,000 resamples, seed 20260831, percentile interval.
+- Holm (D-55): computed per objective over the 4 within-country tests; IE is excluded only from the GDP tests (D-59), and the excluded countries are listed on the result row.
+- Formal tests use the **primary** variant only; sensitivity variants are not tested (they change no verdict, Step 4).
+- SENIOR_HIRE_12M quarter rows are aligned too, but only as a **descriptive** set, to show the noise (D-36).
+
+---
+
 ## Implementation log
 
 ### Step 1: Project skeleton (2026-09-27)
@@ -1991,6 +2054,31 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 - `fetch_arrow_table()` is deprecated in DuckDB 1.5, so it was replaced by `to_arrow_table()`.
 
 **Decision changes:** none (C-01 corrected preview evidence only).
+
+### Step 5: Temporal join and association analysis (2026-09-28)
+**Built:**
+- `sql/as_of_join.sql`: availability date per value (`last_day(period_end + lag)`), then DuckDB **ASOF LEFT JOIN**, so each analysis row gets the latest value already published on its as-of date, with source period, frequency, age and status.
+- `service/alignment.py`: analysis units and their as-of dates (hire quarter start; 1 January of the hire year; start of the TTM window); IE GDP flagged `excluded_from_tests`.
+- `service/association.py`: demeaning, Spearman (ranks, ties averaged), three views (within-country formal; pooled and time-adjusted descriptive), row bootstrap re-demeaned in each resample (seeded), Holm per objective, D-63 wording and caveats (repeated values, excluded countries, time trend).
+- `pipeline/analyse.py`; `job.py` runs ingest → curate → metrics → analyse → publish; the analytical `_build.json` lists all 5 tables.
+- Contracts: `aligned_observations` has a table-level check **available_from ≤ anchor_date** (no future information); `association_results`.
+- Settings: `descriptive_views: [pooled, time_adjusted]`.
+- Tests: `test_alignment.py` (8), `test_association.py` (8), end-to-end association test (101 tests total). End-to-end tests use 50 bootstrap iterations for speed.
+
+**Outputs:** `aligned_observations` (1,008 rows: 432 NEW_HIRE_6M, 96 senior formal + 360 senior descriptive quarter rows, 120 turnover), `association_results` (36 rows = 3 objectives × 4 indicators × 3 views).
+
+**Decisions implemented:** D-28…D-31, D-34…D-38, D-54…D-56, D-58, D-59, D-63, D-79, D-80.
+
+**Verified:**
+- Greece 2023-Q1 as-of values equal the Round 6 evidence (11.8 / 9.5 / 1.1 / 8.7 with source periods 2022-10 / 2022-10 / 2022-Q3 / 2021).
+- Within-country ρ for NEW_HIRE_6M equals Round 7a (−0.10, −0.12, −0.02, 0.00; GDP n = 90 without IE).
+- 12 formal tests, Holm family of 4 per objective; none shows a clear association. Smallest: turnover vs inflation ρ −0.40 [−0.68, +0.04], raw p 0.03, Holm p 0.12.
+- 0 rows use a value published after the as-of date (contract + test); 17 rows use provisional values, which keep `obs_status = p`.
+- Reruns byte-identical (seeded bootstrap). `ruff` clean; `pytest`: 101 passed.
+
+**Issues met:** the contract caught `age_months` as int64 instead of float (it's nullable in principle). The run stopped and kept the old outputs; fixed by casting in the service. The analyse step takes about 13 s because of 36,000 bootstrap resamples, which is acceptable for a batch run.
+
+**Decision changes:** none.
 
 ---
 

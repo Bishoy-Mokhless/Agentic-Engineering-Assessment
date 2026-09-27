@@ -78,7 +78,7 @@ analysis:
   random_seed: 20260831               # D-48: deterministic reruns (same seed as the data pack)
   alpha: 0.05                         # D-34: significance level before Holm correction
   formal_view: within_country         # D-54: the only view used for formal (Holm-corrected) tests
-  descriptive_views: [pooled]         # D-54: shown as context, never in a Holm family
+  descriptive_views: [pooled, time_adjusted]  # D-54, D-79: shown as context, never in a Holm family
   # D-55: one Holm family per objective = the 4 indicators x within-country view (4 tests each)
   objectives:
     NEW_HIRE_6M:            {role: primary,   grain: country_hire_quarter}
