@@ -1,0 +1,16 @@
+{
+  "version": "2.0",
+  "class": "dataset",
+  "label": "Tiny JSON-stat fixture: 2 countries x 3 quarters, one missing cell, one provisional value",
+  "updated": "2026-03-20T23:00:00+0100",
+  "id": ["freq", "geo", "time"],
+  "size": [1, 2, 3],
+  "dimension": {
+    "freq": {"category": {"index": {"Q": 0}}},
+    "geo": {"category": {"index": {"EL": 0, "BG": 1}}},
+    "time": {"category": {"index": {"2023-Q1": 0, "2023-Q2": 1, "2023-Q3": 2}}}
+  },
+  "value": {"0": 1.5, "1": 1.6, "2": 1.4, "3": 0.9, "4": 0.8},
+  "status": {"3": "p"},
+  "extension": {"status": {"label": {"p": "provisional"}}}
+}

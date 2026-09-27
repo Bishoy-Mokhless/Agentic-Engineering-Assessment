@@ -23,10 +23,12 @@ Provider = Literal["eurostat", "worldbank"]
 
 class PathSettings(BaseModel):
     raw: Path
+    source_shaped: Path  # D-71
     canonical: Path
     analytical: Path
     hr_source: Path
     mappings: Path
+    build_tmp: Path  # D-48: temporary build folder
 
 
 class HttpSettings(BaseModel):

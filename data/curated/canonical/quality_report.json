@@ -1,0 +1,400 @@
+{
+  "hr": {
+    "reconciliation": {
+      "rows_in_file": 2407,
+      "duplicate_rows_removed": 7,
+      "employees_out": 2400,
+      "balanced": true
+    },
+    "metric_status": {
+      "INCLUDED": 2378,
+      "QUARANTINED": 12,
+      "EXCLUDED": 10
+    },
+    "flags": [
+      {
+        "flag": "DUPLICATE_ROW",
+        "rows": 7,
+        "effect": "removed",
+        "decision": "D-07",
+        "meaning": "Repeated employee_id; the row with the latest record_updated_at is kept (later file row on a tie)."
+      },
+      {
+        "flag": "COUNTRY_CODE_MAPPED",
+        "rows": 8,
+        "effect": "mapped",
+        "decision": "D-08",
+        "meaning": "Non-standard country code mapped (EL -> GR, ROM -> RO)."
+      },
+      {
+        "flag": "UNKNOWN_COUNTRY",
+        "rows": 9,
+        "effect": "info",
+        "decision": "D-08",
+        "meaning": "Blank country: counted in company totals only, not in per-country views or external joins."
+      },
+      {
+        "flag": "CAREER_LEVEL_MAPPED",
+        "rows": 10,
+        "effect": "mapped",
+        "decision": "D-13",
+        "meaning": "Label 'Sr Mgmt' mapped to 'Senior Leader'."
+      },
+      {
+        "flag": "MISSING_HIRE_DATE",
+        "rows": 5,
+        "effect": "excluded",
+        "decision": "D-09",
+        "meaning": "No hire date: cannot be placed in a cohort or headcount."
+      },
+      {
+        "flag": "TERM_BEFORE_HIRE",
+        "rows": 5,
+        "effect": "excluded",
+        "decision": "D-09",
+        "meaning": "Termination date before hire date: impossible, not repaired."
+      },
+      {
+        "flag": "UNVERIFIED_EXIT",
+        "rows": 12,
+        "effect": "quarantined",
+        "decision": "D-10, D-57, D-67",
+        "meaning": "Unverified exits are quarantined from the primary analysis because their termination classification is incomplete; a sensitivity analysis assesses the impact of treating them as valid exits."
+      },
+      {
+        "flag": "MISSING_TERMINATION_TYPE",
+        "rows": 1,
+        "effect": "warning",
+        "decision": "D-11",
+        "meaning": "Exit with blank termination type but a plausible tenure: kept, type 'Unknown'."
+      },
+      {
+        "flag": "REGRETTED_UNKNOWN",
+        "rows": 2,
+        "effect": "warning",
+        "decision": "D-12",
+        "meaning": "Exit with blank regretted_exit: kept as UNKNOWN, never imputed; counted separately."
+      }
+    ],
+    "termination_type": {
+      "End of Contract": 122,
+      "Involuntary": 153,
+      "NOT_APPLICABLE": 1621,
+      "Unknown": 13,
+      "Voluntary": 491
+    },
+    "regretted_exit": {
+      "FALSE": 525,
+      "NOT_APPLICABLE": 1621,
+      "TRUE": 240,
+      "UNKNOWN": 14
+    },
+    "country_code": {
+      "BG": 420,
+      "GR": 396,
+      "IE": 369,
+      "IT": 436,
+      "PL": 379,
+      "RO": 391,
+      "Unknown": 9
+    }
+  },
+  "indicators": {
+    "reconciliation": [
+      {
+        "indicator": "gdp_growth",
+        "source_rows": 42,
+        "missing_values_dropped": 0,
+        "canonical_rows": 42,
+        "balanced": true
+      },
+      {
+        "indicator": "inflation",
+        "source_rows": 504,
+        "missing_values_dropped": 0,
+        "canonical_rows": 504,
+        "balanced": true
+      },
+      {
+        "indicator": "job_vacancy",
+        "source_rows": 168,
+        "missing_values_dropped": 0,
+        "canonical_rows": 168,
+        "balanced": true
+      },
+      {
+        "indicator": "unemployment",
+        "source_rows": 547,
+        "missing_values_dropped": 0,
+        "canonical_rows": 547,
+        "balanced": true
+      }
+    ],
+    "coverage": [
+      {
+        "indicator": "gdp_growth",
+        "country_code": "BG",
+        "frequency": "annual",
+        "first_period": "2019",
+        "last_period": "2025",
+        "observations": 7,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-07-13"
+      },
+      {
+        "indicator": "gdp_growth",
+        "country_code": "GR",
+        "frequency": "annual",
+        "first_period": "2019",
+        "last_period": "2025",
+        "observations": 7,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-07-13"
+      },
+      {
+        "indicator": "gdp_growth",
+        "country_code": "IE",
+        "frequency": "annual",
+        "first_period": "2019",
+        "last_period": "2025",
+        "observations": 7,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-07-13"
+      },
+      {
+        "indicator": "gdp_growth",
+        "country_code": "IT",
+        "frequency": "annual",
+        "first_period": "2019",
+        "last_period": "2025",
+        "observations": 7,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-07-13"
+      },
+      {
+        "indicator": "gdp_growth",
+        "country_code": "PL",
+        "frequency": "annual",
+        "first_period": "2019",
+        "last_period": "2025",
+        "observations": 7,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-07-13"
+      },
+      {
+        "indicator": "gdp_growth",
+        "country_code": "RO",
+        "frequency": "annual",
+        "first_period": "2019",
+        "last_period": "2025",
+        "observations": 7,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-07-13"
+      },
+      {
+        "indicator": "inflation",
+        "country_code": "BG",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2025-12",
+        "observations": 84,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-02-06T23:00:00+0100"
+      },
+      {
+        "indicator": "inflation",
+        "country_code": "GR",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2025-12",
+        "observations": 84,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-02-06T23:00:00+0100"
+      },
+      {
+        "indicator": "inflation",
+        "country_code": "IE",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2025-12",
+        "observations": 84,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-02-06T23:00:00+0100"
+      },
+      {
+        "indicator": "inflation",
+        "country_code": "IT",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2025-12",
+        "observations": 84,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-02-06T23:00:00+0100"
+      },
+      {
+        "indicator": "inflation",
+        "country_code": "PL",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2025-12",
+        "observations": 84,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-02-06T23:00:00+0100"
+      },
+      {
+        "indicator": "inflation",
+        "country_code": "RO",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2025-12",
+        "observations": 84,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-02-06T23:00:00+0100"
+      },
+      {
+        "indicator": "job_vacancy",
+        "country_code": "BG",
+        "frequency": "quarterly",
+        "first_period": "2019-Q1",
+        "last_period": "2025-Q4",
+        "observations": 28,
+        "missing_periods": 0,
+        "provisional_values": 12,
+        "source_last_updated": "2026-03-20T23:00:00+0100"
+      },
+      {
+        "indicator": "job_vacancy",
+        "country_code": "GR",
+        "frequency": "quarterly",
+        "first_period": "2019-Q1",
+        "last_period": "2025-Q4",
+        "observations": 28,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-03-20T23:00:00+0100"
+      },
+      {
+        "indicator": "job_vacancy",
+        "country_code": "IE",
+        "frequency": "quarterly",
+        "first_period": "2019-Q1",
+        "last_period": "2025-Q4",
+        "observations": 28,
+        "missing_periods": 0,
+        "provisional_values": 1,
+        "source_last_updated": "2026-03-20T23:00:00+0100"
+      },
+      {
+        "indicator": "job_vacancy",
+        "country_code": "IT",
+        "frequency": "quarterly",
+        "first_period": "2019-Q1",
+        "last_period": "2025-Q4",
+        "observations": 28,
+        "missing_periods": 0,
+        "provisional_values": 1,
+        "source_last_updated": "2026-03-20T23:00:00+0100"
+      },
+      {
+        "indicator": "job_vacancy",
+        "country_code": "PL",
+        "frequency": "quarterly",
+        "first_period": "2019-Q1",
+        "last_period": "2025-Q4",
+        "observations": 28,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-03-20T23:00:00+0100"
+      },
+      {
+        "indicator": "job_vacancy",
+        "country_code": "RO",
+        "frequency": "quarterly",
+        "first_period": "2019-Q1",
+        "last_period": "2025-Q4",
+        "observations": 28,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-03-20T23:00:00+0100"
+      },
+      {
+        "indicator": "unemployment",
+        "country_code": "BG",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2026-07",
+        "observations": 91,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-09-22T11:00:00+0200"
+      },
+      {
+        "indicator": "unemployment",
+        "country_code": "GR",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2026-07",
+        "observations": 91,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-09-22T11:00:00+0200"
+      },
+      {
+        "indicator": "unemployment",
+        "country_code": "IE",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2026-08",
+        "observations": 92,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-09-22T11:00:00+0200"
+      },
+      {
+        "indicator": "unemployment",
+        "country_code": "IT",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2026-07",
+        "observations": 91,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-09-22T11:00:00+0200"
+      },
+      {
+        "indicator": "unemployment",
+        "country_code": "PL",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2026-07",
+        "observations": 91,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-09-22T11:00:00+0200"
+      },
+      {
+        "indicator": "unemployment",
+        "country_code": "RO",
+        "frequency": "monthly",
+        "first_period": "2019-01",
+        "last_period": "2026-07",
+        "observations": 91,
+        "missing_periods": 0,
+        "provisional_values": 0,
+        "source_last_updated": "2026-09-22T11:00:00+0200"
+      }
+    ]
+  }
+}

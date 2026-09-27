@@ -1,8 +1,10 @@
 {
-  "run_id": "run-20260927T155343Z",
+  "run_id": "run-20260927T165842Z",
   "mode": "offline",
-  "started_at": "2026-09-27T15:53:43+00:00",
-  "finished_at": "2026-09-27T15:53:43+00:00",
+  "outcome": "succeeded",
+  "error": null,
+  "started_at": "2026-09-27T16:58:42+00:00",
+  "finished_at": "2026-09-27T16:58:42+00:00",
   "sources": [
     {
       "provider": "eurostat",
@@ -59,5 +61,34 @@
       "retry_count": 0,
       "error": null
     }
-  ]
+  ],
+  "steps": {
+    "curate": {
+      "hr_rows_in": 2407,
+      "duplicate_rows_removed": 7,
+      "employees": 2400,
+      "metric_status": {
+        "INCLUDED": 2378,
+        "QUARANTINED": 12,
+        "EXCLUDED": 10
+      },
+      "indicator_rows": 1261,
+      "tables": {
+        "source_shaped": {
+          "eurostat_jvs_q_nace2": 168,
+          "eurostat_prc_hicp_manr": 504,
+          "eurostat_une_rt_m": 547,
+          "hr_events": 2407,
+          "hr_objectives": 3,
+          "worldbank_NY.GDP.MKTP.KD.ZG": 42
+        },
+        "canonical": {
+          "employees": 2400,
+          "indicators": 1261,
+          "objectives": 3,
+          "quality_issues": 59
+        }
+      }
+    }
+  }
 }

@@ -90,6 +90,10 @@ This log is the source for:
 | D-68 | 11 | Source status in offline mode | New 4th status `replayed` | ✅ Yes |
 | D-69 | 11 | HR snapshot folder name | Pack as-of date: `data/raw/hr/2025-12-31/` | ✅ Yes |
 | D-70 | 11 | Code style | Simple, explainable style everywhere: plain loops, one idea per line, commented steps | ✅ Yes |
+| D-71 | 12 | Source-shaped records | New `source_shaped/` Parquet layer: flattened, original codes/text (refines D-41) | ✅ Yes |
+| D-72 | 12 | Blank = not applicable vs unknown | `NOT_APPLICABLE` for active employees, `UNKNOWN` / `Unknown` only for exits (extends D-12) | ✅ Yes |
+| D-73 | 12 | Quality results storage | `metric_status` + `quality_flags` on employees + separate `quality_issues` table | ✅ Yes |
+| D-74 | 12 | Lineage + committing outputs | Rows carry raw snapshot ref; `run_id` in `_build.json` per layer; commit curated outputs (refines D-62) | ✅ Yes |
 
 ---
 
@@ -349,6 +353,7 @@ Browser (index.html + app.js)  ──HTTP request──►  FastAPI (Python)  �
 - **Rationale:** The date is plausible and regretted was filled in, so there is evidence of a real exit.
 
 ### D-12: Blank `regretted_exit` on 2 voluntary exits ✏️
+> 🔁 **Extended by D-72:** active employees get `NOT_APPLICABLE`; `UNKNOWN` is kept only for exits.
 | Option | Notes |
 |---|---|
 | Unknown → show low/high range ⭐ | Primary counts as not regretted |
@@ -1272,6 +1277,7 @@ The top level follows the brief's suggested repository shape exactly, so reviewe
 **Why chosen:** familiar to reviewers (brief's shape) and familiar to me (Spring-style layers inside).
 
 ### D-41: Data layer storage
+> 🔁 **Refined by D-71:** a `source_shaped/` layer now sits between raw and canonical.
 | Option | Notes |
 |---|---|
 | **Raw as-is + Parquet, queried by DuckDB** ⭐ ✅ | raw = untouched; canonical/analytical = Parquet |
@@ -1617,6 +1623,7 @@ The business question ("do external conditions help explain retention?") is abou
 **Why:** the starter data is **intentionally imperfect**. Business rules must **flag and keep** bad rows, not crash. If Pandera enforced business rules, it would either reject valid-but-imperfect data or need many exceptions. Pandera checks that the **output** of our rules has the promised shape.
 
 ### D-62: Source status record and run lineage (refines D-47, D-48)
+> 🔁 **Refined by D-74:** `run_id` is recorded per layer in `_build.json`; rows carry the raw snapshot reference.
 **Per source, per run, recorded in `run_summary.json`:**
 `provider`, `indicator`, latest `source_period`, `loaded_at` (load timestamp), `status` = `fresh` / `stale` / `unavailable`, `error` (if any), `retry_count`, `raw_snapshot` (path of the raw fetch used).
 
@@ -1737,6 +1744,75 @@ Neutral name: the exit cannot be verified. It makes no claim that the date is a 
 
 ---
 
+## Round 12: Curation decisions (Step 3)
+
+### Evidence shown
+(Scratch preview, rules D-07…D-14 and D-57 applied to the real HR file; raw snapshots from Step 2.)
+- **Reconciliation:** 2,407 rows in the file → 7 exact duplicate rows removed → **2,400 employees**: 2,378 INCLUDED, 12 QUARANTINED, 10 EXCLUDED. No employee has more than one problem flag.
+- **Example rows:** `ACP000073 EL→GR` (mapped), `ACP000864 ''→Unknown` (company totals only), `ACP000560` missing hire date (excluded), `ACP000206` termination before hire (excluded), `ACP000089` 90-day blank-type exit (quarantined), `ACP002047` blank type, normal tenure (warning, included), `ACP000534` voluntary, regretted blank (UNKNOWN).
+- **Two kinds of blank:** `regretted_exit` is blank for **1,621 active employees** (question does not apply) and for **14 exits** (really unknown: 12 unverified + 2 voluntary). `termination_type` has the same two kinds of blank.
+- **Publication status in the payloads:** 14 job-vacancy values are flagged `p` = provisional (BG 2023-Q1…2025-Q4, IE and IT 2025-Q4). Unemployment and HICP carry no flags; World Bank `obs_status` is empty for all 42 rows.
+- **Determinism check:** writing the same table to Parquet twice gives byte-identical files (verified with SHA-256).
+- **Brief wording:** "Separate source-shaped and canonical records"; "Canonical grain, keys, lineage, and reconciliation"; "Generated evidence: representative curated data, quality/coverage report".
+
+### D-71: Source-shaped layer
+| Option | Notes |
+|---|---|
+| **Add a `source_shaped/` Parquet layer** ⭐ ✅ | Raw flattened into tables, original codes/text kept |
+| Raw files are the source-shaped layer | No extra layer; canonical keeps `*_source` columns |
+
+**What it means (plain language):** a new layer sits between raw and canonical. It holds the same records as the raw files, but as **tables** and **without any cleaning**: all 2,407 HR rows (duplicates included, blanks as delivered), and Eurostat rows with Eurostat's own codes (`geo=EL`, `time=2023-Q1`, `status=p`).
+```
+data/raw/                       untouched JSON/CSV              (lakehouse: landing)
+data/curated/source_shaped/     flat tables, original codes     (bronze)
+data/curated/canonical/         clean, typed, flagged           (silver)
+data/curated/analytical/        metrics, joins, analysis        (gold)
+```
+**Why chosen:** it answers the brief's "separate source-shaped and canonical records" literally. A reviewer can compare a source row and its canonical row side by side. It also maps cleanly to the landing/bronze/silver/gold story for the production architecture. Cost: one extra small file per source.
+**Not chosen and why:** treating raw JSON as the source-shaped layer (defensible, but raw payloads are documents, not records, so the comparison is harder).
+**Refines D-41:** layers are now raw → source-shaped → canonical → analytical. Canonical still keeps `country_code_source` and `career_level_source` for row-level traceability.
+
+### D-72: Blank = "not applicable" vs "unknown"
+| Option | Notes |
+|---|---|
+| **`NOT_APPLICABLE` for active, `UNKNOWN` for exits** ⭐ ✅ | Never null; a blank can never silently mean two things |
+| Null for active, `UNKNOWN` for exits | Fewer values; null needs explaining in every query |
+| `UNKNOWN` for every blank | Looks like 1,635 missing values instead of 14 |
+
+**What it means:**
+- `regretted_exit`: `TRUE` (240), `FALSE` (525), `UNKNOWN` (14 exits with blank), `NOT_APPLICABLE` (1,621 active employees).
+- `termination_type`: `Voluntary`, `Involuntary`, `End of Contract`, `Unknown` (13 exits with blank type), `NOT_APPLICABLE` (active).
+**Why chosen:** the data dictionary itself says regretted_exit "may be inapplicable or unknown". Those are two different facts. Keeping them apart makes the "14 unknown" count honest and makes SQL filters explicit.
+**Extends D-12:** `UNKNOWN` is used only where a value was expected but missing.
+
+### D-73: How quality results are stored
+| Option | Notes |
+|---|---|
+| **`metric_status` + `quality_flags` + `quality_issues` table** ⭐ ✅ | One status column for SQL; one "why" record per issue |
+| One true/false column per flag | Easy SQL; new column per rule; no single "why" |
+| Issues table only | Every metric query needs an extra join |
+
+**What it means:**
+- `employees.parquet` has `metric_status` = `INCLUDED` / `QUARANTINED` / `EXCLUDED`, and `quality_flags` (e.g. `UNVERIFIED_EXIT`).
+- `quality_issues.parquet` has one row per issue: employee, source row, flag, action, decision ID, detail. The 7 removed duplicate rows are recorded here too.
+- Step 4 SQL: primary metrics use `WHERE metric_status = 'INCLUDED'`; the sensitivity run (D-10, D-22) uses `IN ('INCLUDED', 'QUARANTINED')`.
+**Why chosen:** metric queries stay one simple filter, and the Trust view and quality report read the issues table directly.
+
+### D-74: Lineage and committing generated outputs
+| Option | Notes |
+|---|---|
+| **Snapshot ref per row; `run_id` in `_build.json` per layer; commit outputs** ⭐ ✅ | Parquet identical on reruns; git shows only real changes |
+| `run_id` on every row + commit | Every rerun changes every file |
+| Build file, don't commit outputs | Weaker "generated evidence" |
+
+**What it means:**
+- Every canonical row carries `source_snapshot` (e.g. `eurostat/jvs_q_nace2/20260927T120053Z`), plus load time and the provider's last-update date. This is **row-level lineage**, and it doesn't change between offline reruns.
+- The **run-level** details (`run_id`, build time, input snapshots with SHA-256, row counts and a SHA-256 per output file) go in one `_build.json` per layer.
+- Generated curated files are **committed** as evidence. Because the Parquet files are byte-identical on reruns, git shows a change only when data or logic really changed. A test proves this determinism.
+**Refines D-62:** "curated outputs record the run_id" is implemented per layer, not per row.
+
+---
+
 ## Implementation log
 
 ### Step 1: Project skeleton (2026-09-27)
@@ -1783,6 +1859,37 @@ Neutral name: the exit cannot be verified. It makes no claim that the date is a 
 - What changed: comprehensions replaced by plain loops; numbered step comments; docstrings with examples; clearer names (e.g. `_use_latest_snapshot`, `_check_hr_pack`); keyword arguments when building status objects.
 - Unchanged: `cli.py` and `domain/source_status.py` were already simple.
 - Behaviour check: the same 30 tests pass; `retention run` gives the identical status table.
+
+### Step 3: Curation (2026-09-27)
+**Built:**
+- `domain/errors.py` (PipelineError, CurationError, ContractError), `domain/quality.py` (flags, effects, metric status, one explanation per flag), `domain/periods.py` (period label → start/end dates), `domain/schemas.py` (Pandera contracts, structure only)
+- `service/hr_curation.py` (rules D-07…D-14, D-57, D-72, D-73, one function per rule), `service/indicator_parsing.py` (JSON-stat / World Bank → source-shaped rows), `service/indicator_curation.py` (canonical long table), `service/quality_report.py` (reconciliation, flags, coverage)
+- `repository/curated_repository.py` (build in `data/.tmp/<run_id>/`, publish by swap, discard on failure); `repository/mappings.py` and `raw_repository.py` gained read helpers
+- `pipeline/curate.py` (the step), `pipeline/job.py` (build → publish, or discard + `outcome: failed`), `run_summary.json` now has `outcome`, `error`, `steps`
+- Settings: new paths `source_shaped` and `build_tmp`
+- Tests: `test_hr_curation.py`, `test_indicator_curation.py`, `test_schemas.py`, `test_curate_step.py`, fixtures `eurostat_small.json`, `worldbank_small.json` (67 tests total)
+
+**Outputs:** `data/curated/source_shaped/` (6 tables) and `data/curated/canonical/` (`employees`, `quality_issues`, `objectives`, `indicators`, `quality_report.json`), each layer with `_build.json`.
+
+**Decisions implemented:** D-07…D-14, D-41, D-46, D-48, D-57, D-61, D-62, D-67, D-71…D-74.
+
+**Verified:**
+- HR: 2,407 rows → 7 repeated rows removed → 2,400 employees: 2,378 INCLUDED, 12 QUARANTINED, 10 EXCLUDED (same as the Round 12 preview).
+- `regretted_exit`: TRUE 240, FALSE 525, UNKNOWN 14, NOT_APPLICABLE 1,621.
+- Indicators: 547 + 504 + 168 + 42 = 1,261 canonical rows, 0 missing periods inside each series, 14 provisional job-vacancy values kept with `obs_status = p`.
+- Dates are real `DATE` columns in DuckDB; Greece job vacancy 2022-Q3 = 1.1 with `source_country_code = EL`.
+- Rerun gives byte-identical Parquet files (SHA-256 in `_build.json` unchanged; covered by a test).
+- A failing curate step leaves the previous outputs untouched and records `outcome: failed` (covered by a test).
+- `ruff check .` and `ruff format --check .` clean; `pytest`: 67 passed.
+
+**Rules added while coding (no decision changed):**
+- Anything the rules have never seen stops the run with the row number and the fix, instead of being guessed: an unmapped country code or career level, an unknown termination type, a regretted value other than true/false/blank, or a type or regretted value on an employee with no termination date. None of these occur in the delivered data.
+- `REGRETTED_UNKNOWN` is not added to unverified exits, because the whole exit is already quarantined. This avoids counting the same record twice in the report.
+- Reconciliation is a quality gate: if rows in − removed ≠ rows out, the run fails.
+
+**Issues met:** printing DuckDB tables in the Windows terminal failed on box-drawing characters (display only; used pandas for printing). ruff reformatted long lines.
+
+**Resolved open item from Step 2:** committing curated outputs → yes (D-74).
 
 ---
 

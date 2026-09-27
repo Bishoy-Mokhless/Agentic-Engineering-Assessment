@@ -1,4 +1,7 @@
-"""Load the mapping tables in config/mappings (D-08, D-13)."""
+"""Load the mapping tables in config/mappings (D-08, D-13).
+
+The tables are plain CSV files so anyone can see (and review in git) exactly which codes are changed.
+"""
 
 from __future__ import annotations
 
@@ -27,3 +30,29 @@ def source_country_codes(mappings_dir: Path, source: str, countries: list[str]) 
             raise ValueError(f"No {source} code mapped for country {country} in country_codes.csv")
         result.append(lookup[country])
     return result
+
+
+def country_lookup(mappings_dir: Path, source: str) -> dict[str, str]:
+    """The other direction: a provider's code -> our canonical code.
+
+    Example: source="eurostat"  ->  {"EL": "GR", "RO": "RO", ...}
+             source="hr"        ->  {"GR": "GR", "EL": "GR", "ROM": "RO", ...}
+    """
+    lookup = {}
+    with open(mappings_dir / "country_codes.csv", encoding="utf-8") as file:
+        for row in csv.DictReader(file):
+            if row["source"] == source:
+                lookup[row["source_code"]] = row["canonical_code"]
+    return lookup
+
+
+def career_level_lookup(mappings_dir: Path) -> dict[str, str]:
+    """Reported career-level label -> canonical label (D-13).
+
+    Example: {"Manager": "Manager", "Sr Mgmt": "Senior Leader", ...}
+    """
+    lookup = {}
+    with open(mappings_dir / "career_levels.csv", encoding="utf-8") as file:
+        for row in csv.DictReader(file):
+            lookup[row["source_label"]] = row["canonical_label"]
+    return lookup

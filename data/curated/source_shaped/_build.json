@@ -1,0 +1,74 @@
+{
+  "layer": "source_shaped",
+  "run_id": "run-20260927T165842Z",
+  "built_at": "2026-09-27T16:58:42+00:00",
+  "inputs": [
+    {
+      "source": "hr",
+      "snapshot": "hr/2025-12-31/employee_lifecycle_events.csv",
+      "sha256": "9397a896d3111f178efa10206cadff956295e69bf599639ade01c98aece90b3e"
+    },
+    {
+      "source": "hr",
+      "snapshot": "hr/2025-12-31/retention_objectives.csv",
+      "sha256": "a774edd86360812d32af04cf5c4f82c3bebb0068b3f4b2a560b4a89cb98f2463"
+    },
+    {
+      "source": "hr",
+      "snapshot": "hr/2025-12-31/data_dictionary.csv",
+      "sha256": "d0a47b953ada63d6afa28fd2716eb1a66cf589b090571d6d873307433ddc6238"
+    },
+    {
+      "source": "unemployment",
+      "snapshot": "eurostat/une_rt_m/20260927T120052Z",
+      "sha256": "bb4d4df9950f64e0727786d80f312438f0271725bc4e491b6c54b265fe7c5399"
+    },
+    {
+      "source": "inflation",
+      "snapshot": "eurostat/prc_hicp_manr/20260927T120053Z",
+      "sha256": "f21fc243ee84db4f475907673ac59c931551f3925a221716bdf68f732c7c7605"
+    },
+    {
+      "source": "job_vacancy",
+      "snapshot": "eurostat/jvs_q_nace2/20260927T120053Z",
+      "sha256": "bedb1db06a8963a7de3f383580f74f285e0c44ce1c0a8c80a311eae54d0512c1"
+    },
+    {
+      "source": "gdp_growth",
+      "snapshot": "worldbank/NY.GDP.MKTP.KD.ZG/20260927T120053Z",
+      "sha256": "a45d994801f3a5ed65b154c34fade9878bfda15400b725f726f3844de7743e51"
+    }
+  ],
+  "tables": {
+    "eurostat_jvs_q_nace2": {
+      "file": "eurostat_jvs_q_nace2.parquet",
+      "rows": 168,
+      "sha256": "6c4757447dff9255efc0dca75d6238d4aa59043c8202ce5f1214e810d64ca3eb"
+    },
+    "eurostat_prc_hicp_manr": {
+      "file": "eurostat_prc_hicp_manr.parquet",
+      "rows": 504,
+      "sha256": "33bc3fd102d2a8ebd978c9315b2e1df52580f6adc23fe119e3f6e43a493d2e5c"
+    },
+    "eurostat_une_rt_m": {
+      "file": "eurostat_une_rt_m.parquet",
+      "rows": 547,
+      "sha256": "3280177f1714b68f52f6303c295d5a99d198f98c62daf46e883648acb8107747"
+    },
+    "hr_events": {
+      "file": "hr_events.parquet",
+      "rows": 2407,
+      "sha256": "155762b91a1f7a2fbabbf9f6a8152c522a3a8e92cb1a2388c653eff9c11b79d9"
+    },
+    "hr_objectives": {
+      "file": "hr_objectives.parquet",
+      "rows": 3,
+      "sha256": "bda72576f571e70f423f12b71c2960e5b60b35f8cdd1d1ac1ed578b4a16fa0c4"
+    },
+    "worldbank_NY.GDP.MKTP.KD.ZG": {
+      "file": "worldbank_NY.GDP.MKTP.KD.ZG.parquet",
+      "rows": 42,
+      "sha256": "4aa1347002a8678124f56ec0b4b09bddeb918c308c4d2fff05ec45364ae250fb"
+    }
+  }
+}

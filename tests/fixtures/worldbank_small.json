@@ -1,0 +1,11 @@
+[
+  {"page": 1, "pages": 1, "per_page": 1000, "total": 3, "sourceid": "2", "lastupdated": "2026-07-13"},
+  [
+    {"indicator": {"id": "NY.GDP.MKTP.KD.ZG", "value": "GDP growth (annual %)"}, "country": {"id": "GR", "value": "Greece"},
+     "countryiso3code": "GRC", "date": "2022", "value": null, "unit": "", "obs_status": "", "decimal": 1},
+    {"indicator": {"id": "NY.GDP.MKTP.KD.ZG", "value": "GDP growth (annual %)"}, "country": {"id": "GR", "value": "Greece"},
+     "countryiso3code": "GRC", "date": "2021", "value": 8.7, "unit": "", "obs_status": "", "decimal": 1},
+    {"indicator": {"id": "NY.GDP.MKTP.KD.ZG", "value": "GDP growth (annual %)"}, "country": {"id": "BG", "value": "Bulgaria"},
+     "countryiso3code": "BGR", "date": "2021", "value": 7.6, "unit": "", "obs_status": "", "decimal": 1}
+  ]
+]

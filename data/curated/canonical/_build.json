@@ -1,0 +1,64 @@
+{
+  "layer": "canonical",
+  "run_id": "run-20260927T165842Z",
+  "built_at": "2026-09-27T16:58:42+00:00",
+  "inputs": [
+    {
+      "source": "hr",
+      "snapshot": "hr/2025-12-31/employee_lifecycle_events.csv",
+      "sha256": "9397a896d3111f178efa10206cadff956295e69bf599639ade01c98aece90b3e"
+    },
+    {
+      "source": "hr",
+      "snapshot": "hr/2025-12-31/retention_objectives.csv",
+      "sha256": "a774edd86360812d32af04cf5c4f82c3bebb0068b3f4b2a560b4a89cb98f2463"
+    },
+    {
+      "source": "hr",
+      "snapshot": "hr/2025-12-31/data_dictionary.csv",
+      "sha256": "d0a47b953ada63d6afa28fd2716eb1a66cf589b090571d6d873307433ddc6238"
+    },
+    {
+      "source": "unemployment",
+      "snapshot": "eurostat/une_rt_m/20260927T120052Z",
+      "sha256": "bb4d4df9950f64e0727786d80f312438f0271725bc4e491b6c54b265fe7c5399"
+    },
+    {
+      "source": "inflation",
+      "snapshot": "eurostat/prc_hicp_manr/20260927T120053Z",
+      "sha256": "f21fc243ee84db4f475907673ac59c931551f3925a221716bdf68f732c7c7605"
+    },
+    {
+      "source": "job_vacancy",
+      "snapshot": "eurostat/jvs_q_nace2/20260927T120053Z",
+      "sha256": "bedb1db06a8963a7de3f383580f74f285e0c44ce1c0a8c80a311eae54d0512c1"
+    },
+    {
+      "source": "gdp_growth",
+      "snapshot": "worldbank/NY.GDP.MKTP.KD.ZG/20260927T120053Z",
+      "sha256": "a45d994801f3a5ed65b154c34fade9878bfda15400b725f726f3844de7743e51"
+    }
+  ],
+  "tables": {
+    "employees": {
+      "file": "employees.parquet",
+      "rows": 2400,
+      "sha256": "199b8cfa6d3b89bf29d4ee39f6582323bd467485d95387bb410205040a456c03"
+    },
+    "indicators": {
+      "file": "indicators.parquet",
+      "rows": 1261,
+      "sha256": "e7f90930547da69c15248fc00f693abd288ad568a86c50f65ca91363410b668a"
+    },
+    "objectives": {
+      "file": "objectives.parquet",
+      "rows": 3,
+      "sha256": "f493fd55c4f95aac95c1514850000c4b044f3e555fa18b15dbc5fe3db8d22421"
+    },
+    "quality_issues": {
+      "file": "quality_issues.parquet",
+      "rows": 59,
+      "sha256": "bbe26b0e4951e8e307ca7cb53eed07622b6297f24b5c9a7e6e828d176f4ba4cf"
+    }
+  }
+}

@@ -7,10 +7,12 @@ countries: [GR, RO, PL, IT, IE, BG]   # canonical codes, ISO 3166 alpha-2 (D-08)
 
 paths:                                # relative to the project root
   raw: data/raw                       # D-41: untouched source data, kept per fetch date (D-48)
+  source_shaped: data/curated/source_shaped  # D-71: raw flattened into tables, original codes/text
   canonical: data/curated/canonical   # D-41: cleaned, typed, flagged
   analytical: data/curated/analytical # D-41: metrics, joined tables, analysis results
   hr_source: data/raw/hr              # D-65/D-69: supplied HR pack, one folder per as-of date
   mappings: config/mappings           # D-08, D-13: code/label mapping tables
+  build_tmp: data/.tmp                # D-48: each run builds here, then swaps into data/curated
 
 http:                                 # D-47: resilience for external APIs
   timeout_seconds: 60

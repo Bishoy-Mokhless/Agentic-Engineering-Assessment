@@ -25,8 +25,14 @@ def write_run_summary(
     started_at: datetime,
     finished_at: datetime,
     sources: list[SourceStatus],
+    outcome: str,
+    steps: dict,
+    error: str | None = None,
 ) -> None:
-    """Write data/curated/run_summary.json (replaces the previous run's file)."""
+    """Write data/curated/run_summary.json (replaces the previous run's file).
+
+    outcome = "succeeded" or "failed"; steps = row counts per step, e.g. {"curate": {"employees": 2400}}
+    """
     # 1. Build the summary as plain dicts/lists (JSON-friendly).
     source_records = []
     for source in sources:
@@ -35,9 +41,12 @@ def write_run_summary(
     summary = {
         "run_id": run_id,
         "mode": mode,
+        "outcome": outcome,
+        "error": error,
         "started_at": started_at.isoformat(timespec="seconds"),
         "finished_at": finished_at.isoformat(timespec="seconds"),
         "sources": source_records,
+        "steps": steps,
     }
 
     # 2. Write to a temp file, then swap it in, so readers never see a half-written file.

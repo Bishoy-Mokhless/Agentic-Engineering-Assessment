@@ -14,6 +14,8 @@ import json
 import os
 from pathlib import Path
 
+import pandas as pd
+
 
 class RawRepository:
     def __init__(self, root: Path) -> None:
@@ -86,6 +88,19 @@ class RawRepository:
         if not path.exists():
             return {}
         return json.loads(path.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def read_payload(snapshot: Path) -> bytes:
+        """The provider's response exactly as saved (payload.json)."""
+        return (snapshot / "payload.json").read_bytes()
+
+    @staticmethod
+    def read_csv_as_text(snapshot: Path, file_name: str) -> pd.DataFrame:
+        """Read a delivered CSV with every column as text, blanks kept as "" (nothing interpreted yet).
+
+        Example row: {"employee_id": "ACP000560", "hire_date": "", "regretted_exit": "false", ...}
+        """
+        return pd.read_csv(snapshot / file_name, dtype=str, keep_default_na=False)
 
     def relative(self, path: Path) -> str:
         """Path relative to data/raw, with forward slashes, e.g. 'eurostat/une_rt_m/20260927T120052Z'."""

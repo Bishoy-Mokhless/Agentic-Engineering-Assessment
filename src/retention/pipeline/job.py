@@ -1,6 +1,10 @@
 """The pipeline job: runs the steps in order (ingest -> curate -> metrics -> integrate -> analyse).
 
-Spring analogy: a Spring Batch Job. Only the ingest step exists so far (Step 2).
+Spring analogy: a Spring Batch Job. Steps so far: ingest (Step 2), curate (Step 3).
+
+Curated outputs are built in data/.tmp/<run_id>/ and swapped into data/curated/ only when every
+step succeeded (D-48). If a step fails, the previous curated outputs stay exactly as they were,
+and run_summary.json records the failure.
 """
 
 from __future__ import annotations
@@ -8,10 +12,15 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
+from retention.client.http import SourceError
 from retention.config import Settings
+from retention.domain.errors import PipelineError
 from retention.domain.source_status import SourceState, SourceStatus
+from retention.pipeline.curate import run_curate
 from retention.pipeline.ingest import Mode, run_ingest
 from retention.pipeline.run_summary import new_run_id, write_run_summary
+from retention.repository.curated_repository import CuratedRepository
+from retention.repository.raw_repository import RawRepository
 
 log = logging.getLogger(__name__)
 
@@ -21,16 +30,14 @@ def run_pipeline(settings: Settings, mode: Mode) -> int:
     started_at = datetime.now(UTC)
     run_id = new_run_id(started_at)
     log.info("Run %s started (mode: %s)", run_id, mode)
+    steps = {}
 
     # Step: ingest
-    statuses = run_ingest(settings, mode)
+    raw_repo = RawRepository(settings.paths.raw)
+    statuses = run_ingest(settings, mode, repo=raw_repo)
     _log_status_table(statuses)
 
-    # Record the run (lineage + source status) for the API / dashboard Trust view.
-    summary_path = settings.paths.analytical.parent / "run_summary.json"
-    write_run_summary(summary_path, run_id, mode, started_at, datetime.now(UTC), statuses)
-
-    # Decide whether the run can continue.
+    # Stop here if a source has no usable data at all.
     unavailable = []
     has_stale = False
     for status in statuses:
@@ -41,12 +48,65 @@ def run_pipeline(settings: Settings, mode: Mode) -> int:
 
     if unavailable:
         log.error("Cannot continue: no usable data for %s", ", ".join(unavailable))
+        _finish(settings, run_id, mode, started_at, statuses, "failed", steps)
         return 1
     if has_stale:
         log.warning("Some sources are STALE (last good snapshot used). See run_summary.json.")
 
-    log.info("Run %s finished.", run_id)
+    # Steps that build curated layers: all inside one temporary build folder (D-48).
+    curated_repo = CuratedRepository(
+        layer_dirs={
+            "source_shaped": settings.paths.source_shaped,
+            "canonical": settings.paths.canonical,
+            "analytical": settings.paths.analytical,
+        },
+        build_root=settings.paths.build_tmp,
+    )
+    build = curated_repo.start_build(run_id)
+    try:
+        # Step: curate
+        steps["curate"] = run_curate(settings, statuses, raw_repo, curated_repo, build, run_id, started_at)
+
+        # All steps succeeded: make the new outputs visible.
+        curated_repo.publish(build)
+    except (PipelineError, SourceError) as exc:
+        curated_repo.discard(build)
+        log.error("Run stopped: %s", exc)
+        log.error("The previous curated outputs in data/curated were kept unchanged.")
+        _finish(settings, run_id, mode, started_at, statuses, "failed", steps, error=str(exc))
+        return 1
+    except Exception:
+        curated_repo.discard(build)  # unexpected bug: clean up, then show the full traceback
+        raise
+
+    _finish(settings, run_id, mode, started_at, statuses, "succeeded", steps)
+    log.info("Run %s finished. Outputs in %s", run_id, settings.paths.canonical.parent)
     return 0
+
+
+def _finish(
+    settings: Settings,
+    run_id: str,
+    mode: str,
+    started_at: datetime,
+    statuses: list[SourceStatus],
+    outcome: str,
+    steps: dict,
+    error: str | None = None,
+) -> None:
+    """Record the run (lineage, source status, step counts) for the API / dashboard Trust view."""
+    summary_path = settings.paths.canonical.parent / "run_summary.json"
+    write_run_summary(
+        summary_path,
+        run_id=run_id,
+        mode=mode,
+        started_at=started_at,
+        finished_at=datetime.now(UTC),
+        sources=statuses,
+        outcome=outcome,
+        steps=steps,
+        error=error,
+    )
 
 
 def _log_status_table(statuses: list[SourceStatus]) -> None:
