@@ -1,4 +1,4 @@
-/* Dashboard styles. Colours are defined once as tokens and swapped for dark mode.
+/* Dashboard styles. Colours are defined once as tokens. Light theme only (D-83: dark mode removed).
    Palette: validated categorical order (dataviz reference palette), status colours reserved for status. */
 
 :root {
@@ -29,33 +29,6 @@
   --warning-bg: #fdf1d3;
   --critical-bg: #fbe4e4;
   --neutral-bg: #efeee9;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --text: #ffffff;
-    --text-2: #c3c2b7;
-    --muted: #a3a29a;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255, 255, 255, 0.12);
-    --accent: #3987e5;
-    --focus: #6da7ec;
-    --band: rgba(57, 135, 229, 0.22);
-    --c-GR: #3987e5;
-    --c-RO: #d95926;
-    --c-PL: #199e70;
-    --c-IT: #c98500;
-    --c-IE: #d55181;
-    --c-BG: #008300;
-    --good-bg: #16301a;
-    --warning-bg: #3a2f10;
-    --critical-bg: #3b1a1a;
-    --neutral-bg: #262624;
-  }
 }
 
 * { box-sizing: border-box; }

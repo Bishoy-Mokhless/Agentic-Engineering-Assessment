@@ -1992,6 +1992,17 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 
 ---
 
+## Round 16: Changes before Step 9
+
+### D-83: Remove dark mode from the dashboard ✏️ (🔁 changes the Step 7 "Accessibility" and "Colours" agent choices)
+- **What I said:** before Step 9, remove the dark mode.
+- **Change:** `dashboard/style.css` no longer has the `@media (prefers-color-scheme: dark)` block. The page always uses the light tokens (`color-scheme: light`), whatever the operating system theme is. Charts read the same tokens, so they are light too.
+- **What it means:** one theme to review, screenshot and present. The Step 7 entries that mention "dark mode" and "light and dark" checks now apply to the light theme only.
+- **Why:** simpler page and one consistent look for the demo and the screenshots.
+- **Not kept:** automatic dark mode (followed the OS setting). Nothing else depended on it; no test checked it.
+
+---
+
 ## Implementation log
 
 ### Step 1: Project skeleton (2026-09-27)
