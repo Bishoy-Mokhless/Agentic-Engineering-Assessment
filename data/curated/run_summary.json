@@ -1,10 +1,10 @@
 {
-  "run_id": "run-20260927T213200Z",
+  "run_id": "run-20260927T220522Z",
   "mode": "offline",
   "outcome": "succeeded",
   "error": null,
-  "started_at": "2026-09-27T21:32:00+00:00",
-  "finished_at": "2026-09-27T21:32:13+00:00",
+  "started_at": "2026-09-27T22:05:22+00:00",
+  "finished_at": "2026-09-27T22:05:36+00:00",
   "sources": [
     {
       "provider": "eurostat",

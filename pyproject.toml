@@ -44,6 +44,9 @@ retention = ["sql/*.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "ui: browser tests with Playwright (need `python -m playwright install chromium`); skip with -m \"not ui\"",
+]
 filterwarnings = [
     # Third-party notice from Starlette about its TestClient transport; not our code.
     "ignore:Using `httpx` with `starlette.testclient` is deprecated",

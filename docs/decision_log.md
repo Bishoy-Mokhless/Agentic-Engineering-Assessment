@@ -1982,6 +1982,14 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 | Safety | 🤖 API text inserted only with `textContent` (a test fails if `.innerHTML` appears) | — |
 | Senior quarterly rows | 🤖 In Challenge, a "Rows" selector for SENIOR_HIRE_12M shows the country × quarter rows as descriptive only, with no test result attached (D-36) | Hide them |
 
+### Step 8 agent choices (🤖 D-82)
+| Choice | Taken | Alternatives not taken |
+|---|---|---|
+| Server for UI tests | 🤖 Real uvicorn server in a background thread on a free port, with data built by the real offline pipeline into a temp folder | Mocked API responses everywhere (would not test the real integration) |
+| API outage test | 🤖 Playwright intercepts `/api/retention/*` and answers 503, to check the page shows an alert instead of going blank | Stop the server mid-test (slow, flaky) |
+| Marker | 🤖 `ui` marker: `pytest -m "not ui"` runs everything except the browser tests (for a machine without Chromium) | Separate test command |
+| Checking the tests | 🤖 Two deliberate breakages of `app.js` (a changed message; filters no longer reloading) were caught by 1 and 5 tests; the file was restored and verified | Trusting green tests without checking they can fail |
+
 ---
 
 ## Implementation log
@@ -2160,6 +2168,35 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 3. The sensitivity table sorted "2021-2025" between 2021 and 2022; years now come first.
 4. With the senior quarterly rows selected, the result box still described the yearly formal test (n = 24 under a 90-row scatter). It now says the rows are descriptive and not tested.
 5. The scatter legend showed an empty "Other countries" entry when "All countries" was selected; empty series are now hidden.
+
+### Step 8: UI tests and end-to-end check (2026-09-28)
+**Built:** `tests/ui/conftest.py` (builds real data offline, starts uvicorn on a free port), `tests/ui/test_dashboard_ui.py` (13 Playwright tests), `ui` marker in `pyproject.toml`. API tests were written with Steps 6–7 (30 in `tests/api`).
+
+**What the UI tests cover (D-45):**
+- The page loads with data; the health badge is "ok"; the as-of date is shown; the headline 87.5% is inconclusive.
+- Filters update the view: objective (senior 78.2%, not met), country (Romania) and segment (Fixed Term) change the numbers; turnover disables the segment filter and shows 5.11%.
+- Empty state (senior + Manager), error state (reversed years → the API's 400 message as an alert), API outage (503 → alert, not a blank page).
+- Understand: 3 objective tiles and the GDP table marked annual. Challenge: 12 tests, 4 formal, D-35 label, D-63 wording, pooled label. Trust: licence, `replayed`, reconciliation, UNVERIFIED_EXIT flag, "No verdict changes".
+- Accessibility: every select has a label; arrow keys move between tabs; the chart's table twin opens and shows data.
+
+**Verified:**
+- `retention run` → exit 0, 12 formal tests logged; data files byte-identical to Step 7 (only `_build.json` run IDs change).
+- `ruff check .` and `ruff format --check .` clean.
+- `pytest` → **145 passed** (unit 102, API 30, UI 13); `pytest -m "not ui"` → 132 passed, 13 deselected.
+- The tests can fail: two deliberate breakages were caught (see agent choices).
+
+**How to run (cmd, venv active):**
+```
+python -m playwright install chromium   (once)
+ruff check .
+ruff format --check .
+pytest                 (everything)
+pytest -m "not ui"     (without the browser tests)
+retention run
+retention serve        -> http://127.0.0.1:8000/  and  /docs
+```
+
+**Decision changes:** none. **Next:** Step 9 (docs and presentation) is on hold, as agreed (D-82).
 
 ---
 
