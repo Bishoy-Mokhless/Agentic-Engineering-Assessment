@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retention Signals</title>
+  <meta name="description" content="Workforce retention objectives next to external labour-market signals (synthetic assessment data).">
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js 4.4.7 (MIT licence), stored in the repo so the dashboard works offline. -->
+  <script src="vendor/chart.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="page-header">
+    <div>
+      <h1>Retention × external signals</h1>
+      <p class="subtitle">Asteria Consumer Products (fictional) · workforce data as of <span id="as-of">…</span></p>
+    </div>
+    <div id="health" class="health" role="status" aria-live="polite">Checking data…</div>
+  </header>
+
+  <!-- One filter row that scopes every view below it. -->
+  <section class="filters" aria-label="Filters">
+    <div class="field">
+      <label for="f-objective">Objective</label>
+      <select id="f-objective"></select>
+    </div>
+    <div class="field">
+      <label for="f-country">Country</label>
+      <select id="f-country"></select>
+    </div>
+    <div class="field">
+      <label for="f-segment">Workforce segment</label>
+      <select id="f-segment"></select>
+    </div>
+    <div class="field">
+      <label for="f-from">From year</label>
+      <select id="f-from"></select>
+    </div>
+    <div class="field">
+      <label for="f-to">To year</label>
+      <select id="f-to"></select>
+    </div>
+    <div class="field">
+      <label for="f-variant">Data treatment</label>
+      <select id="f-variant"></select>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Dashboard views">
+    <button role="tab" id="tab-explore" aria-controls="panel-explore" aria-selected="true">Explore</button>
+    <button role="tab" id="tab-understand" aria-controls="panel-understand" aria-selected="false" tabindex="-1">Understand</button>
+    <button role="tab" id="tab-challenge" aria-controls="panel-challenge" aria-selected="false" tabindex="-1">Challenge</button>
+    <button role="tab" id="tab-trust" aria-controls="panel-trust" aria-selected="false" tabindex="-1">Trust</button>
+  </nav>
+
+  <main id="main">
+    <!-- EXPLORE: the selected objective for the selected slice -->
+    <section id="panel-explore" role="tabpanel" aria-labelledby="tab-explore" class="panel">
+      <h2 id="explore-title">Explore</h2>
+      <p id="explore-label" class="muted"></p>
+      <div id="explore-message" class="message" hidden></div>
+      <div id="explore-content">
+        <div id="explore-tiles" class="tiles"></div>
+        <h3>Status by year</h3>
+        <div id="explore-years" class="table-wrap"></div>
+        <figure class="chart-card">
+          <figcaption id="trend-caption">Trend</figcaption>
+          <div class="chart-box"><canvas id="trend-chart" role="img" aria-label="Trend chart"></canvas></div>
+          <details><summary>Show the numbers as a table</summary><div id="trend-table" class="table-wrap"></div></details>
+        </figure>
+        <figure class="chart-card" id="exit-card">
+          <figcaption>Why hires were not retained (exit type, mature hires in the selected years)</figcaption>
+          <div class="chart-box short"><canvas id="exit-chart" role="img" aria-label="Exit type bar chart"></canvas></div>
+          <details><summary>Show the numbers as a table</summary><div id="exit-table" class="table-wrap"></div></details>
+        </figure>
+        <ul id="explore-notes" class="notes"></ul>
+      </div>
+    </section>
+
+    <!-- UNDERSTAND: objective status next to external signals -->
+    <section id="panel-understand" role="tabpanel" aria-labelledby="tab-understand" class="panel" hidden>
+      <h2>Understand: objective status and external signals</h2>
+      <div id="understand-message" class="message" hidden></div>
+      <h3>All three objectives for <span id="understand-country"></span></h3>
+      <div id="understand-tiles" class="tiles"></div>
+      <div class="section-controls">
+        <div class="field">
+          <label for="u-indicator">External signal</label>
+          <select id="u-indicator"></select>
+        </div>
+      </div>
+      <figure class="chart-card">
+        <figcaption id="u-rate-caption">Objective trend</figcaption>
+        <div class="chart-box"><canvas id="u-rate-chart" role="img" aria-label="Objective trend chart"></canvas></div>
+        <details><summary>Show the numbers as a table</summary><div id="u-rate-table" class="table-wrap"></div></details>
+      </figure>
+      <figure class="chart-card">
+        <figcaption id="u-indicator-caption">External signal</figcaption>
+        <div class="chart-box"><canvas id="u-indicator-chart" role="img" aria-label="External signal chart"></canvas></div>
+        <details><summary>Show the numbers as a table</summary><div id="u-indicator-table" class="table-wrap"></div></details>
+      </figure>
+      <ul class="notes">
+        <li>Two separate charts on the same years, never one chart with two y-axes.</li>
+        <li>Each signal is drawn at its own frequency. Annual GDP is one value per year (drawn as steps), never shown as new monthly or quarterly values.</li>
+        <li>This view shows values by their own period. The association tests (Challenge) use only values already published on each cohort's as-of date.</li>
+      </ul>
+    </section>
+
+    <!-- CHALLENGE: relationships with n, uncertainty and caveats -->
+    <section id="panel-challenge" role="tabpanel" aria-labelledby="tab-challenge" class="panel" hidden>
+      <h2>Challenge: do external signals move with retention?</h2>
+      <p id="challenge-label" class="analysis-label"></p>
+      <div id="challenge-message" class="message" hidden></div>
+      <h3>All tests for this objective</h3>
+      <div id="challenge-results" class="table-wrap"></div>
+      <div class="section-controls">
+        <div class="field">
+          <label for="c-indicator">Signal</label>
+          <select id="c-indicator"></select>
+        </div>
+        <div class="field">
+          <label for="c-view">View</label>
+          <select id="c-view">
+            <option value="within_country">Within-country (formal test)</option>
+            <option value="pooled">Pooled (descriptive)</option>
+            <option value="time_adjusted">Time-adjusted (descriptive)</option>
+          </select>
+        </div>
+        <div class="field" id="c-set-field" hidden>
+          <label for="c-set">Rows</label>
+          <select id="c-set">
+            <option value="formal">Country × year (tested)</option>
+            <option value="descriptive">Country × quarter (descriptive only, shows the noise)</option>
+          </select>
+        </div>
+      </div>
+      <figure class="chart-card">
+        <figcaption id="scatter-caption">Relationship</figcaption>
+        <div class="chart-box tall"><canvas id="scatter-chart" role="img" aria-label="Scatter chart"></canvas></div>
+        <details><summary>Show the points as a table</summary><div id="scatter-table" class="table-wrap"></div></details>
+      </figure>
+      <div id="challenge-result" class="result-box" aria-live="polite"></div>
+      <ul class="notes">
+        <li>Correlation does not imply causation: these results are associative, not causal.</li>
+        <li>A result without a clear association does not show that no relationship exists; small samples and repeated observations limit inference.</li>
+        <li>Holm correction is applied over the 4 formal within-country tests of each objective.</li>
+      </ul>
+    </section>
+
+    <!-- TRUST: freshness, coverage, exclusions, attribution, methodology -->
+    <section id="panel-trust" role="tabpanel" aria-labelledby="tab-trust" class="panel" hidden>
+      <h2>Trust: where the numbers come from</h2>
+      <div id="trust-message" class="message" hidden></div>
+      <h3>Sources and freshness</h3>
+      <div id="trust-sources" class="table-wrap"></div>
+      <h3>Data quality and exclusions</h3>
+      <p id="trust-reconciliation"></p>
+      <div id="trust-status" class="tiles"></div>
+      <div id="trust-flags" class="table-wrap"></div>
+      <p id="trust-principle" class="principle"></p>
+      <h3>Sensitivity: does the data treatment change the verdict?</h3>
+      <p id="trust-sensitivity-summary"></p>
+      <div id="trust-sensitivity" class="table-wrap"></div>
+      <details>
+        <summary>Indicator coverage per country</summary>
+        <div id="trust-coverage" class="table-wrap"></div>
+      </details>
+      <h3>Methodology</h3>
+      <div class="methodology">
+        <p><strong>New-hire and senior retention:</strong> share of hires still employed 6 (or 12) calendar months after hire; any exit on or before that date counts as not retained. Hires whose window ends after 2025-12-31 are not yet measurable and are counted separately. Senior = Senior Leader.</p>
+        <p><strong>Regretted turnover:</strong> confirmed regretted exits in the trailing 12 months divided by the average of 13 month-end headcounts.</p>
+        <p><strong>Uncertainty:</strong> 95% Wilson intervals. A status is <em>met</em> or <em>not met</em> only when the whole interval is on one side of the target, otherwise <em>inconclusive</em>. Verdicts are given per year and for 2021–2025; quarters and months are trends.</p>
+        <p><strong>Unverified exits</strong> are quarantined from the primary analysis because their termination classification is incomplete; a sensitivity analysis assesses the impact of treating them as valid exits.</p>
+        <p><strong>External signals:</strong> joined as of the start of each cohort period using conservative fixed publication lags (monthly +2, quarterly +3, annual +7 months). These are approximations based on observed availability, not exact release dates, and today's APIs return revised values.</p>
+        <p><strong>Association:</strong> Spearman rank correlation within each country (formal, Holm-corrected, 4 tests per objective); pooled and time-adjusted views are descriptive. Bootstrap intervals are exploratory because rows are not independent.</p>
+        <p>API documentation: <a href="/docs">/docs</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    <p>Sources: Eurostat (reuse under Commission Decision 2011/833/EU) and World Bank World Development Indicators (CC BY 4.0); data filtered to 6 countries. Workforce data is synthetic and fictional.</p>
+  </footer>
+</body>
+</html>

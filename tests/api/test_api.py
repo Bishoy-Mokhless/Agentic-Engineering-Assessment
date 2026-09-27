@@ -99,6 +99,12 @@ def test_segment_filter_recomputes_and_segments_add_up_to_the_total(client):
     assert fixed["rows"][0]["retained"] + permanent["rows"][0]["retained"] == total["retained"]
 
 
+def test_segment_with_no_hires_returns_an_empty_list_not_an_error(client):
+    # Senior hires are Senior Leaders by definition (D-14), so career_level Manager has none.
+    body = get_ok(client, "/api/retention/cohorts?objective=SENIOR_HIRE_12M&segment=career_level:Manager")
+    assert body["rows"] == []
+
+
 def test_year_range_filter(client):
     body = get_ok(client, "/api/retention/cohorts?grain=year&year_from=2022&year_to=2023")
     assert [row["period"] for row in body["rows"]] == ["2022", "2023"]

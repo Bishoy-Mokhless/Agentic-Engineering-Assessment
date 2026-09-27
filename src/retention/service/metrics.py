@@ -21,6 +21,7 @@ from retention.repository.sql_repository import register_table, run_sql
 from retention.service.stats import objective_status, wilson_interval
 
 VERDICT_GRAINS = ["year", "period"]  # D-76: quarters are trend lines only
+RATE_FIELDS = ["rate", "ci_low", "ci_high", "target", "direction", "status", "small_sample"]
 TURNOVER_OBJECTIVE = "REGRETTED_TURNOVER_12M"
 
 
@@ -65,7 +66,8 @@ def compute_retention_cohorts(
         is_verdict_row = row["grain"] in VERDICT_GRAINS
         row.update(_rate_fields(row["retained"], row["n"], target, direction, is_verdict_row, settings))
         rows.append(row)
-    return pd.DataFrame(rows)
+    # Explicit columns: an empty slice (e.g. a segment with no hires) still has the full shape.
+    return pd.DataFrame(rows, columns=list(cohorts.columns) + RATE_FIELDS)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -90,7 +92,7 @@ def compute_regretted_turnover(
             )
         )
         rows.append(row)
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=list(turnover.columns) + RATE_FIELDS)
 
 
 # ---------------------------------------------------------------------------------------------

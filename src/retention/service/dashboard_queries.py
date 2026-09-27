@@ -143,6 +143,12 @@ def parse_segment(segment: str | None) -> tuple[str, str] | None:
     return dimension, value
 
 
+def keep_rows(table: pd.DataFrame, keep: list[bool]) -> pd.DataFrame:
+    """Keep the rows marked True. (table[keep] with an EMPTY list would select zero COLUMNS.)"""
+    mask = pd.Series(keep, index=table.index, dtype=bool)
+    return table[mask]
+
+
 def _period_year(period: str) -> int | None:
     """ "2023-Q1" -> 2023, "2023" -> 2023, "2021-2025" (whole period) -> None."""
     if len(period) == 4:
@@ -316,7 +322,7 @@ def cohorts(
     keep = []
     for period in table["period"]:
         keep.append(_in_years(_period_year(period), year_from, year_to))
-    table = table[keep].sort_values("period")
+    table = keep_rows(table, keep).sort_values("period")
 
     notes = [
         "Rates use mature hires only; hires whose window ends after the as-of date are counted as "
@@ -366,7 +372,7 @@ def turnover(
     keep = []
     for month_end in table["month_end"]:
         keep.append(_in_years(month_end.year, year_from, year_to))
-    table = table[keep].sort_values("month_end")
+    table = keep_rows(table, keep).sort_values("month_end")
 
     return {
         "objective": meta,
@@ -415,7 +421,12 @@ def sensitivity(store: CuratedStore, settings: Settings, objective: str) -> dict
             "with_unverified_exits": "Unverified exits treated as valid exits (D-10, D-57).",
         }
 
-    rows = records(table[columns].sort_values(["period", "variant"]))
+    # Years first, then the whole period ("2021-2025"), each with primary before the sensitivity variants.
+    table = table[columns].copy()
+    table["is_whole_period"] = table["period"].str.len() > 4
+    table["variant_order"] = table["variant"].map(lambda v: 0 if v == "primary" else 1)
+    table = table.sort_values(["is_whole_period", "period", "variant_order", "variant"])
+    rows = records(table[columns])
 
     # How many verdicts change between primary and each sensitivity variant?
     primary_status = {}
@@ -464,7 +475,7 @@ def indicators(
     keep = []
     for start in table["period_start"]:
         keep.append(_in_years(start.year, year_from, year_to))
-    table = table[keep]
+    table = keep_rows(table, keep)
 
     columns = [
         "indicator", "lens", "provider", "country_code", "period", "frequency", "period_start",

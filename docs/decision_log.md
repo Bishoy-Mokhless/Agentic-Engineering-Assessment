@@ -1528,6 +1528,7 @@ Text that must be copied into the final deliverables, not only kept in this log:
   3. NEW_HIRE_6M **inconclusive**: 87.5% [85.9%, 89.0%] vs ≥ 86%; exits in the first 6 months are mostly voluntary (148 of 225).
   4. **Non-finding:** none of the 12 formal within-country tests shows a clear association after Holm. Turnover vs inflation had raw p = 0.03 but Holm p = 0.12, a concrete multiple-comparisons example. Unemployment trends strongly with time (ρ −0.71), so time is a plausible confounder (D-79).
   5. **Data-health impact:** the sensitivity variants (unverified exits, UNKNOWN regretted) change no verdict.
+  6. **Ramp-up effect (seen in the Step 7 dashboard):** company TTM regretted turnover is above 7.5% from 2021-01 to about 2021-08 (peak ~10.4%), when headcount was still small and growing from zero. It is trend only (no verdict on non-December months, D-76), and it illustrates the D-23 limitation (population = hires since 2020).
 
 ---
 
@@ -1969,6 +1970,18 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 | Cohort rows with n = 0 | 🤖 Returned (e.g. 2025-Q3/Q4 for NEW_HIRE_6M), with `immature_hires` and no rate, so "not measurable yet" is visible (D-18) | Hide them |
 | ruff B008 | 🤖 Configured `extend-immutable-calls` for FastAPI's `Depends`/`Query` defaults (standard FastAPI style) | Rewrite every endpoint without defaults |
 
+### Step 7 agent choices (🤖 D-82)
+| Choice | Taken | Alternatives not taken |
+|---|---|---|
+| Chart.js delivery | 🤖 Stored in the repo (`dashboard/vendor/chart.umd.min.js`, v4.4.7, MIT, ~200 KB): the dashboard and UI tests work offline | CDN link (breaks network-independent review) |
+| Layout | 🤖 One filter row (objective, country, segment, years, data treatment) scoping four tabs: Explore, Understand, Challenge, Trust | One long page |
+| Signals vs objectives | 🤖 Two separate charts on the same years, never one chart with two y-axes; annual GDP drawn as steps | Dual-axis chart (misleading) |
+| Colours | 🤖 Validated palette: fixed colour per country (6 slots pass the colour-blind and contrast checks in light and dark mode; low-contrast light slots are covered by table views); status = icon + word, never colour alone | Colours by rank or chart defaults |
+| Scatter | 🤖 Selected country highlighted, others grey (a 6-colour scatter would not be distinguishable) | One colour per country |
+| Accessibility | 🤖 Labelled selects, ARIA tabs with arrow keys, skip link, focus outline, a "Show the numbers as a table" twin for every chart, `role=alert` errors, `aria-busy` while loading, dark mode, phone layout without sideways scroll | — |
+| Safety | 🤖 API text inserted only with `textContent` (a test fails if `.innerHTML` appears) | — |
+| Senior quarterly rows | 🤖 In Challenge, a "Rows" selector for SENIOR_HIRE_12M shows the country × quarter rows as descriptive only, with no test result attached (D-36) | Hide them |
+
 ---
 
 ## Implementation log
@@ -2124,6 +2137,29 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 - `ruff` clean; `pytest`: 128 passed.
 
 **Issues met:** reusing one `Query(...)` object for both `year_from` and `year_to` made FastAPI treat them as the same parameter (`year_to` silently equalled `year_from`), so a reversed range returned 200. It was found by a manual error-case check before the tests were written, and fixed with one `Query` per parameter (`year_query`); a regression test covers it. One test expectation was wrong (18 vs 20 quarter rows; the two extra rows are immature quarters, correct per D-18).
+
+### Step 7: Dashboard (2026-09-28)
+**Built:** `dashboard/index.html` (structure, labelled filters, 4 ARIA tabs, methodology text), `dashboard/style.css` (light/dark tokens, validated palette, status pills, responsive), `dashboard/app.js` (one loader per tab; empty, error and loading states; table twins; tooltips), `dashboard/vendor/chart.umd.min.js`. Served by FastAPI at `/` (`retention serve`).
+- **Explore:** whole-period and latest-year tiles (rate, CI, n, status, target), not-yet-measurable hires, verdicts per year, quarterly trend with CI band and target line, exit-type breakdown. For turnover: latest December, "years meeting the target", monthly TTM with CI band.
+- **Understand:** status of all three objectives for the selected country, the objective trend, and the chosen external signal (one line per country, fixed colours; GDP as annual steps).
+- **Challenge:** all 12 tests with rho, bootstrap CI, n, p, Holm p and D-63 wording; scatter for the chosen signal and view; result and caveats in words.
+- **Trust:** sources with status, fetch time, coverage, lag, licence and notes; reconciliation; INCLUDED / QUARANTINED / EXCLUDED counts; flag table; principle; sensitivity table; coverage; methodology.
+
+**Decisions implemented:** D-04, D-05, D-17, D-35, D-36, D-59, D-63, D-68, D-75…D-78, D-82 choices above.
+
+**Verified (real browser, Playwright/Chromium, light and dark):**
+- All four tabs render with no script errors; screenshots reviewed by eye.
+- Empty state: SENIOR_HIRE_12M + career level Manager shows "No mature hires match these filters…".
+- Error state: years 2025 → 2021 shows the API's 400 message as an alert.
+- 390 px wide phone screen: no sideways scrolling on any tab.
+- `ruff` clean; `pytest`: 132 passed (incl. 3 new dashboard-file tests: page and assets served, `/api` not hidden by the mount, no `.innerHTML`).
+
+**Issues met (found by looking at the real page, all fixed):**
+1. The senior-only "Rows" selector showed for every objective: CSS `display: flex` overrode the `hidden` attribute. Fixed with a global `[hidden] { display: none !important; }`.
+2. **API bug:** a segment with no hires returned **500**. Two causes: (a) the metrics service built a table with no columns when nothing matched; (b) `table[keep]` with an empty list selects zero columns in pandas. Fixed with explicit columns and a `keep_rows()` helper; regression test added.
+3. The sensitivity table sorted "2021-2025" between 2021 and 2022; years now come first.
+4. With the senior quarterly rows selected, the result box still described the yearly formal test (n = 24 under a 90-row scatter). It now says the rows are descriptive and not tested.
+5. The scatter legend showed an empty "Other countries" entry when "All countries" was selected; empty series are now hidden.
 
 ---
 
