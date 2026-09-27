@@ -1,0 +1,44 @@
+{
+  "layer": "analytical",
+  "run_id": "run-20260927T211115Z",
+  "built_at": "2026-09-27T21:11:15+00:00",
+  "inputs": [
+    {
+      "source": "canonical",
+      "snapshot": "canonical/employees.parquet",
+      "sha256": "199b8cfa6d3b89bf29d4ee39f6582323bd467485d95387bb410205040a456c03"
+    },
+    {
+      "source": "canonical",
+      "snapshot": "canonical/indicators.parquet",
+      "sha256": "e7f90930547da69c15248fc00f693abd288ad568a86c50f65ca91363410b668a"
+    },
+    {
+      "source": "canonical",
+      "snapshot": "canonical/objectives.parquet",
+      "sha256": "f493fd55c4f95aac95c1514850000c4b044f3e555fa18b15dbc5fe3db8d22421"
+    },
+    {
+      "source": "canonical",
+      "snapshot": "canonical/quality_issues.parquet",
+      "sha256": "bbe26b0e4951e8e307ca7cb53eed07622b6297f24b5c9a7e6e828d176f4ba4cf"
+    }
+  ],
+  "tables": {
+    "hire_outcomes": {
+      "file": "hire_outcomes.parquet",
+      "rows": 2291,
+      "sha256": "24d219fcc9b85aa05b06a257204c183a2bc17a46909681dd50c8c65b70a58d68"
+    },
+    "regretted_turnover": {
+      "file": "regretted_turnover.parquet",
+      "rows": 1260,
+      "sha256": "67937f17eaceaab509390c15e370cbe84c72a8f6d76024a34354f34cfd6ba928"
+    },
+    "retention_cohorts": {
+      "file": "retention_cohorts.parquet",
+      "rows": 707,
+      "sha256": "9ec8754cf20fd32f601d046fba894753c5117c9caad1e3a4fcabae3b7ab44b3e"
+    }
+  }
+}

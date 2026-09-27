@@ -66,6 +66,11 @@ class CuratedRepository:
         path = self.layer_path(build, layer) / f"{name}.json"
         path.write_text(json.dumps(data, indent=2, default=str) + "\n", encoding="utf-8")
 
+    def read_json(self, build: Path, layer: str, name: str) -> dict:
+        """Read back a JSON document written earlier in the same build (e.g. canonical/_build.json)."""
+        path = self.layer_path(build, layer) / f"{name}.json"
+        return json.loads(path.read_text(encoding="utf-8"))
+
     def publish(self, build: Path) -> None:
         """Swap every layer of the build into data/curated, then delete the build folder.
 

@@ -1,10 +1,10 @@
 {
-  "run_id": "run-20260927T165842Z",
+  "run_id": "run-20260927T211115Z",
   "mode": "offline",
   "outcome": "succeeded",
   "error": null,
-  "started_at": "2026-09-27T16:58:42+00:00",
-  "finished_at": "2026-09-27T16:58:42+00:00",
+  "started_at": "2026-09-27T21:11:15+00:00",
+  "finished_at": "2026-09-27T21:11:16+00:00",
   "sources": [
     {
       "provider": "eurostat",
@@ -89,6 +89,11 @@
           "quality_issues": 59
         }
       }
+    },
+    "metrics": {
+      "hire_outcomes": 2291,
+      "regretted_turnover": 1260,
+      "retention_cohorts": 707
     }
   }
 }

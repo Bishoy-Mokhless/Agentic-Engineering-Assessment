@@ -94,6 +94,10 @@ This log is the source for:
 | D-72 | 12 | Blank = not applicable vs unknown | `NOT_APPLICABLE` for active employees, `UNKNOWN` / `Unknown` only for exits (extends D-12) | ✅ Yes |
 | D-73 | 12 | Quality results storage | `metric_status` + `quality_flags` on employees + separate `quality_issues` table | ✅ Yes |
 | D-74 | 12 | Lineage + committing outputs | Rows carry raw snapshot ref; `run_id` in `_build.json` per layer; commit curated outputs (refines D-62) | ✅ Yes |
+| D-75 | 13 | Objective status rule | CI-aware 3 states: met / not met / inconclusive | ✅ Yes |
+| D-76 | 13 | Status grain | Verdicts for whole period + each year; quarterly cohorts and monthly TTM are trend lines only | ✅ Yes |
+| D-77 | 13 | Segment filter | Hire-level analytical table; API aggregates with filters; official tables still precomputed | ✅ Yes |
+| D-78 | 13 | Small samples | `small_sample` warning when n < 10; values still shown | ✅ Yes |
 
 ---
 
@@ -1120,6 +1124,7 @@ Year examples:     BG 2021: 11/15 = 73%     BG 2022: 10/15 = 67%    BG 2024: 10/
 → Consecutive monthly values barely differ: they are nearly the same data.
 
 **Per-country year-end values (non-overlapping):**
+> ⛔ **Corrected by C-01 (Round 13):** this table came from a preview script with a one-month window bug. The corrected values are in C-01; RO 2021 is 6.6%, not 8.3%.
 ```
 GR: 2021 5.5% | 2022 2.7% | 2023 0.5% | 2024 4.1% | 2025 3.9%
 RO: 2021 8.3% | 2022 6.9% | 2023 6.4% | 2024 2.4% | 2025 7.1%
@@ -1512,7 +1517,7 @@ Text that must be copied into the final deliverables, not only kept in this log:
 - Round 6 revisions/vintages limitation → `docs/methodology.md` and README "Known limitations".
 - D-36 grain deviation (senior test at year grain) and D-55 exact test lists per family → `docs/methodology.md`.
 - D-56 bootstrap/dependence caveat, D-57 standard wording for unverified exits, D-58 lag wording, D-59 GDP definition and Ireland handling, D-63 language rules → `docs/methodology.md`, README, dashboard text and presentation.
-- Candidate findings spotted during previews (to be confirmed by the real pipeline): no clear indicator association for NEW_HIRE_6M (non-finding); senior 12m retention ~70–80% vs 90% target; RO 2021 regretted turnover above target; company regretted turnover jump in 2025.
+- Candidate findings spotted during previews (to be confirmed by the real pipeline): no clear indicator association for NEW_HIRE_6M (non-finding); senior 12m retention ~70–80% vs 90% target; ~~RO 2021 regretted turnover above target~~ (withdrawn, see C-01); company regretted turnover jump in 2025.
 
 ---
 
@@ -1811,6 +1816,72 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 - Generated curated files are **committed** as evidence. Because the Parquet files are byte-identical on reruns, git shows a change only when data or logic really changed. A test proves this determinism.
 **Refines D-62:** "curated outputs record the run_id" is implemented per layer, not per row.
 
+## Round 13: Metric presentation decisions (Step 4)
+
+### Correction found while preparing Step 4 (C-01)
+- **What happened:** recomputing regretted turnover from the canonical layer gave **RO 2021 = 6.6%**, not the **8.3%** in the Round 7b evidence.
+- **Cause:** the Round 7b scratch script (agent-written, outside the repo) shifted the 12-month window by one month. The window started on 2020-11-30 instead of 2020-12-31 (13 months of exits), and its 13 headcount dates ended in October instead of December. It was a preview bug, not a data issue.
+- **Scope:** only the Round 7b **per-country year-end table** was affected. The company-level figures in Round 4b (23 → 82 regretted exits; 4.4% → 5.1%) came from a different script and match the new computation exactly.
+- **Corrected per-country year-end values:**
+  ```
+  2021: GR 5.2%  RO 6.6%  PL 4.6%  IT 5.0%  IE 2.7%  BG 2.3%
+  2022: GR 2.6%  RO 6.7%  PL 4.1%  IT 1.9%  IE 3.3%  BG 4.9%
+  2023: GR 0.5%  RO 5.6%  PL 3.0%  IT 4.2%  IE 4.9%  BG 2.7%
+  2024: GR 4.1%  RO 1.8%  PL 2.1%  IT 4.8%  IE 3.0%  BG 3.3%
+  2025: GR 2.8%  RO 6.7%  PL 3.4%  IT 5.0%  IE 6.3%  BG 6.1%
+  ```
+- **Effect:** the candidate finding "RO 2021 regretted turnover above target" is **withdrawn**: no country-year is above 7.5%. No decision changes (D-35…D-39 did not depend on it).
+- **AI_USAGE note:** the agent's own preview statistic was wrong and was caught by independent recomputation in the real pipeline. This is why preview numbers were always labelled "preliminary, to be reproduced by the real pipeline". Tests on the exact TTM window boundaries are added in Step 4.
+
+### Evidence shown
+- **Status at row level (NEW_HIRE_6M, 108 country-quarter rows, n 7–29):** point estimate → 66 met / 42 not met; 95% CI-aware → 107 inconclusive / 1 not met. Example: RO 2021-Q2 12/16 = 75.0%, CI [50.5%, 89.8%] vs target 86%.
+- **Grain changes the conclusion:** NEW_HIRE_6M whole period 1,579/1,804 = 87.5% [85.9%, 89.0%] → inconclusive; SENIOR_HIRE_12M whole period 208/266 = 78.2% [72.9%, 82.7%] → **not met**, and not met in each year 2021–2024; company turnover December values 4.4 / 3.8 / 3.4 / 3.3 / 5.1% → met every year; country × December: 12 met, 18 inconclusive.
+- **Segments split by country × quarter:** median n = 7 (employment type), 5 (career level), 4 (business unit), 2 (job family). At company level: Fixed Term 336 hires (85%) vs Permanent 1,468 (88%); Manager 91%.
+- **Small n:** senior country × quarter has 41 of 90 rows with 1–2 people (shown on purpose, D-36).
+
+### D-75: Objective status rule
+| Option | Notes |
+|---|---|
+| **CI-aware 3 states** ⭐ ✅ | met / not met / inconclusive, from the 95% Wilson CI |
+| Point estimate only | 42 of 108 small cohorts "not met", mostly noise |
+| Point status + CI warning | Two signals to read |
+
+**What it means:** "at least" targets: **met** if the whole CI is at or above the target, **not met** if the whole CI is below it, otherwise **inconclusive**. "At most" targets (turnover) are the mirror image. The rate itself is always shown next to the status.
+**Why chosen:** a verdict should not be driven by noise. With 16 people, 75% cannot be told apart from 86%. The rule still gives clear answers where the evidence is strong (senior retention: not met).
+
+### D-76: Status grain
+| Option | Notes |
+|---|---|
+| **Whole period + per year; quarters/months as trends** ⭐ ✅ | Largest n for verdicts |
+| Quarterly status everywhere | Almost every country row inconclusive |
+| Whole period only | Hides year-to-year change (e.g. 2025 turnover jump) |
+
+**What it means:**
+- NEW_HIRE_6M and SENIOR_HIRE_12M get a verdict for the effective period 2021–2025 (mature hires only) and for each hire year, company-wide and per country.
+- REGRETTED_TURNOVER_12M gets a verdict for each **December** TTM value (the objective is defined as a trailing-12-month rate, so a pooled 5-year rate would not be the defined KPI).
+- Quarterly cohorts and monthly TTM values carry n and CI but **no verdict** (`status` is empty).
+**Why chosen:** a verdict needs enough people behind it. Trends still show timing.
+
+### D-77: Segment filter
+| Option | Notes |
+|---|---|
+| **Hire-level table; API aggregates with filters** ⭐ ✅ | Any filter combination; never stale |
+| Precompute one segment at a time | Filters can't combine |
+| Precompute country × quarter × segment | Median n 2–7 |
+
+**What it means:** the analytical layer contains `hire_outcomes`, one row per hire and objective, with the outcome and the segment columns. The API (Step 6) runs the same grouping SQL with the chosen filters and returns n, CI and warnings. The official tables used by Step 5 (`retention_cohorts`, `regretted_turnover`) are still precomputed by the pipeline.
+**Why chosen:** it's flexible for the brief's Explore view and keeps one definition of the metric, the same SQL, for both uses.
+
+### D-78: Small samples
+| Option | Notes |
+|---|---|
+| **Warn below 10, show all** ⭐ ✅ | Keeps D-36's deliberately noisy view |
+| Warn below 10, hide below 5 | HR privacy practice; hides most senior quarterly rows |
+| No rule, CI only | — |
+
+**What it means:** rows with n < 10 get `small_sample = true`, and the dashboard shows a warning next to them.
+**Production note (for docs):** with real people, cells below 5 would be suppressed for privacy (re-identification risk). This data is synthetic, so values are shown.
+
 ---
 
 ## Implementation log
@@ -1890,6 +1961,36 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 **Issues met:** printing DuckDB tables in the Windows terminal failed on box-drawing characters (display only; used pandas for printing). ruff reformatted long lines.
 
 **Resolved open item from Step 2:** committing curated outputs → yes (D-74).
+
+### Step 4: Metrics (2026-09-27)
+**Built:**
+- `sql/hire_outcomes.sql` (one row per hire and objective: observation date, outcome, exit type in window), `sql/retention_cohorts.sql` (counts per objective × variant × grain × scope × period, using GROUPING SETS), `sql/regretted_turnover.sql` (month-end headcount, monthly exits, TTM rolled up with window functions)
+- `repository/sql_repository.py` (loads packaged `.sql` files, runs them on Parquet views with named parameters, keeps DATE types via Arrow)
+- `service/stats.py` (Wilson interval, CI-aware status), `service/metrics.py` (rate, CI, target, status on verdict rows only, small-sample flag)
+- `pipeline/metrics.py` (the step), `pipeline/lineage.py` (shared `_build.json` builder; analytical inputs = canonical files + sha256), `job.py` (ingest → curate → metrics → publish)
+- Settings: `metrics.report_start`, `confidence_level`, `small_sample_below`
+- Contracts for `hire_outcomes`, `retention_cohorts`, `regretted_turnover` (e.g. `headcount_points` must always be 13)
+- Tests: `test_metrics.py` (17 tests on boundaries), golden headline numbers and analytical determinism in `test_curate_step.py` (84 tests total)
+
+**Outputs:** `data/curated/analytical/` with `hire_outcomes` (2,291 rows), `retention_cohorts`, `regretted_turnover`, `_build.json`.
+
+**Decisions implemented:** D-10, D-12, D-14, D-16…D-23, D-33, D-37, D-73, D-75…D-78.
+
+**Verified (all equal to the independent Round 13 preview):**
+- NEW_HIRE_6M 2021–2025: 1,579/1,804 = 87.5% [85.9%, 89.0%] vs ≥ 86% → **inconclusive**; every year inconclusive; 162 immature hires reported.
+- SENIOR_HIRE_12M 2021–2025: 208/266 = 78.2% [72.9%, 82.7%] vs ≥ 90% → **not met**; not met in each year 2021–2024; 47 immature.
+- REGRETTED_TURNOVER_12M December values: 4.40%, 3.78%, 3.36%, 3.30%, 5.11% vs ≤ 7.5% → **met** every year; per-country values equal the C-01 corrected table.
+- Sensitivity: unverified exits added → NEW_HIRE_6M 87.5% → 87.1% (same verdict); UNKNOWN regretted counted as TRUE → +1 exit in 2022 and 2024 (same verdicts). The data-quality decisions do not change any conclusion.
+- Exit types among new hires not retained (2021–2025): Voluntary 148, Involuntary 47, End of Contract 30.
+- Quarter rows carry no verdict; reruns are byte-identical; canonical Parquet files unchanged by Step 4 (only `_build.json` run IDs change).
+- `ruff check .` and `ruff format --check .` clean; `pytest`: 84 passed.
+
+**Issues met:**
+- The contract caught `window_months` as int32 (a DuckDB integer literal). The run stopped and the previous outputs were kept, which is the failure path working as designed. Fixed with `CAST(... AS BIGINT)`.
+- DuckDB `sum()` returns DECIMAL, which Python can't divide by a float. Cast to BIGINT in SQL.
+- `fetch_arrow_table()` is deprecated in DuckDB 1.5, so it was replaced by `to_arrow_table()`.
+
+**Decision changes:** none (C-01 corrected preview evidence only).
 
 ---
 

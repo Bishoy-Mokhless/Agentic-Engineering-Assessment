@@ -25,6 +25,7 @@ from retention.config import Settings
 from retention.domain import schemas
 from retention.domain.errors import CurationError
 from retention.domain.source_status import SourceStatus
+from retention.pipeline.lineage import build_record
 from retention.repository.curated_repository import CuratedRepository, TableInfo
 from retention.repository.mappings import career_level_lookup, country_lookup
 from retention.repository.raw_repository import RawRepository
@@ -152,7 +153,7 @@ def run_curate(
 
     for layer in ["source_shaped", "canonical"]:
         curated_repo.write_json(
-            build, layer, "_build", _build_record(layer, run_id, built_at, inputs, written[layer])
+            build, layer, "_build", build_record(layer, run_id, built_at, inputs, written[layer])
         )
 
     return {
@@ -177,23 +178,6 @@ def _hr_inputs(snapshot: Path, snapshot_ref: str) -> list[dict]:
             {"source": "hr", "snapshot": f"{snapshot_ref}/{entry['name']}", "sha256": entry["sha256"]}
         )
     return inputs
-
-
-def _build_record(
-    layer: str, run_id: str, built_at: datetime, inputs: list[dict], tables: dict[str, TableInfo]
-) -> dict:
-    """_build.json: which run built this layer, from which raw inputs, producing which files (D-74)."""
-    table_records = {}
-    for name in sorted(tables):
-        info = tables[name]
-        table_records[name] = {"file": info.file, "rows": info.rows, "sha256": info.sha256}
-    return {
-        "layer": layer,
-        "run_id": run_id,
-        "built_at": built_at.isoformat(timespec="seconds"),
-        "inputs": inputs,
-        "tables": table_records,
-    }
 
 
 def _row_counts(written: dict[str, dict[str, TableInfo]]) -> dict[str, dict[str, int]]:

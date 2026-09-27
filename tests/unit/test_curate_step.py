@@ -57,6 +57,31 @@ def test_offline_run_builds_both_layers_with_reconciled_counts(settings):
     assert summary["outcome"] == "succeeded" and summary["steps"]["curate"]["employees"] == 2400
 
 
+def test_metrics_step_reproduces_the_agreed_headline_numbers(settings):
+    """Step 4 golden numbers (same values as the independent Round 13 preview)."""
+    assert run_pipeline(settings, "offline") == 0
+    analytical = settings.paths.analytical
+    cohorts = duckdb.sql(
+        f"SELECT objective_id, retained, n, status FROM '{analytical / 'retention_cohorts.parquet'}' "
+        "WHERE variant = 'primary' AND scope = 'company' AND grain = 'period' ORDER BY objective_id"
+    ).fetchall()
+    assert cohorts == [("NEW_HIRE_6M", 1579, 1804, "inconclusive"), ("SENIOR_HIRE_12M", 208, 266, "not_met")]
+
+    turnover = duckdb.sql(
+        f"SELECT year(month_end), regretted_exits, round(avg_headcount), status "
+        f"FROM '{analytical / 'regretted_turnover.parquet'}' "
+        "WHERE variant = 'primary' AND scope = 'company' AND is_year_end ORDER BY 1"
+    ).fetchall()
+    assert turnover == [
+        (2021, 23, 523, "met"),
+        (2022, 32, 846, "met"),
+        (2023, 38, 1131, "met"),
+        (2024, 46, 1395, "met"),
+        (2025, 82, 1603, "met"),
+    ]
+    assert (analytical / "_build.json").exists()
+
+
 def test_canonical_tables_are_readable_with_sql_and_typed(settings):
     run_pipeline(settings, "offline")
     employees = settings.paths.canonical / "employees.parquet"
@@ -82,12 +107,16 @@ def test_rerun_produces_byte_identical_tables(settings):
     first = read_json(settings.paths.canonical / "_build.json")
     first_source = read_json(settings.paths.source_shaped / "_build.json")
 
+    first_analytical = read_json(settings.paths.analytical / "_build.json")
+
     run_pipeline(settings, "offline")
     second = read_json(settings.paths.canonical / "_build.json")
     second_source = read_json(settings.paths.source_shaped / "_build.json")
+    second_analytical = read_json(settings.paths.analytical / "_build.json")
 
     assert first["tables"] == second["tables"]  # same rows AND same sha256 per file
     assert first_source["tables"] == second_source["tables"]
+    assert first_analytical["tables"] == second_analytical["tables"]
 
 
 def test_failed_run_keeps_previous_outputs(settings, monkeypatch):

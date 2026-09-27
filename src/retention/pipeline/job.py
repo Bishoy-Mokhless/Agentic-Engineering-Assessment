@@ -1,6 +1,6 @@
 """The pipeline job: runs the steps in order (ingest -> curate -> metrics -> integrate -> analyse).
 
-Spring analogy: a Spring Batch Job. Steps so far: ingest (Step 2), curate (Step 3).
+Spring analogy: a Spring Batch Job. Steps so far: ingest (Step 2), curate (Step 3), metrics (Step 4).
 
 Curated outputs are built in data/.tmp/<run_id>/ and swapped into data/curated/ only when every
 step succeeded (D-48). If a step fails, the previous curated outputs stay exactly as they were,
@@ -18,6 +18,8 @@ from retention.domain.errors import PipelineError
 from retention.domain.source_status import SourceState, SourceStatus
 from retention.pipeline.curate import run_curate
 from retention.pipeline.ingest import Mode, run_ingest
+from retention.pipeline.lineage import build_record, table_inputs
+from retention.pipeline.metrics import run_metrics
 from retention.pipeline.run_summary import new_run_id, write_run_summary
 from retention.repository.curated_repository import CuratedRepository
 from retention.repository.raw_repository import RawRepository
@@ -64,8 +66,17 @@ def run_pipeline(settings: Settings, mode: Mode) -> int:
     )
     build = curated_repo.start_build(run_id)
     try:
-        # Step: curate
+        # Step: curate (raw -> source_shaped + canonical)
         steps["curate"] = run_curate(settings, statuses, raw_repo, curated_repo, build, run_id, started_at)
+
+        # Step: metrics (canonical -> analytical), reading the canonical tables of THIS build
+        metric_tables = run_metrics(settings, curated_repo, build)
+        canonical_record = curated_repo.read_json(build, "canonical", "_build")
+        analytical_record = build_record(
+            "analytical", run_id, started_at, table_inputs("canonical", canonical_record), metric_tables
+        )
+        curated_repo.write_json(build, "analytical", "_build", analytical_record)
+        steps["metrics"] = _row_counts(metric_tables)
 
         # All steps succeeded: make the new outputs visible.
         curated_repo.publish(build)
@@ -107,6 +118,14 @@ def _finish(
         steps=steps,
         error=error,
     )
+
+
+def _row_counts(tables: dict) -> dict[str, int]:
+    """{"hire_outcomes": 2291, ...} for run_summary.json."""
+    counts = {}
+    for name in sorted(tables):
+        counts[name] = tables[name].rows
+    return counts
 
 
 def _log_status_table(statuses: list[SourceStatus]) -> None:

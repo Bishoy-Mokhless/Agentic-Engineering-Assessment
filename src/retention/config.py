@@ -52,6 +52,12 @@ class IndicatorSettings(BaseModel):
     exclude_from_analysis: list[str] = []
 
 
+class MetricsSettings(BaseModel):
+    report_start: date  # D-23
+    confidence_level: float  # D-33
+    small_sample_below: int  # D-78
+
+
 class ObjectiveAnalysis(BaseModel):
     role: Literal["primary", "secondary"]  # D-35
     grain: Literal["country_hire_quarter", "country_hire_year", "country_year_end_ttm"]
@@ -74,6 +80,7 @@ class Settings(BaseModel):
     publication_lag_months: dict[Frequency, int]  # D-29
     providers: dict[Provider, str]
     indicators: dict[str, IndicatorSettings]
+    metrics: MetricsSettings
     analysis: AnalysisSettings
 
 

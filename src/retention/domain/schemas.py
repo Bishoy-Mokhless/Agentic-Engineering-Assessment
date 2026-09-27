@@ -192,6 +192,105 @@ def indicators_schema(countries: list[str], indicator_names: list[str]) -> pa.Da
     )
 
 
+# --- Analytical (Step 4) -------------------------------------------------------------------
+
+HIRE_OBJECTIVES = ["NEW_HIRE_6M", "SENIOR_HIRE_12M"]
+STATUSES = ["met", "not_met", "inconclusive"]
+
+# One row per hire and objective (key: objective_id + employee_id), D-77.
+HIRE_OUTCOMES = pa.DataFrameSchema(
+    {
+        "objective_id": pa.Column(str, pa.Check.isin(HIRE_OBJECTIVES)),
+        "employee_id": _text_column(),
+        "metric_status": pa.Column(str, pa.Check.isin(["INCLUDED", "QUARANTINED"])),
+        "country_code": _text_column(),
+        "business_unit": _text_column(),
+        "job_family": _text_column(),
+        "career_level": _text_column(),
+        "employment_type": _text_column(),
+        "hire_date": pa.Column(Date),
+        "hire_year": _text_column(),
+        "hire_quarter": pa.Column(str, pa.Check.str_matches(r"^\d{4}-Q[1-4]$")),
+        "window_months": pa.Column(int, pa.Check.isin([6, 12])),
+        "observation_date": pa.Column(Date),
+        "termination_date": pa.Column(Date, nullable=True),
+        "outcome": pa.Column(str, pa.Check.isin(["retained", "not_retained", "immature"])),
+        "exit_type_in_window": _text_column(nullable=True),
+    },
+    strict=True,
+    unique=["objective_id", "employee_id"],
+)
+
+
+def _rate_columns() -> dict[str, pa.Column]:
+    """Columns added by service/metrics.py to every metric row."""
+    return {
+        "rate": pa.Column(float, pa.Check.in_range(0, 1), nullable=True),
+        "ci_low": pa.Column(float, pa.Check.in_range(0, 1), nullable=True),
+        "ci_high": pa.Column(float, pa.Check.in_range(0, 1), nullable=True),
+        "target": pa.Column(float, pa.Check.in_range(0, 1)),
+        "direction": pa.Column(str, pa.Check.isin(["at_least", "at_most"])),
+        "status": pa.Column(str, pa.Check.isin(STATUSES), nullable=True),
+        "small_sample": pa.Column(bool),
+    }
+
+
+def _cohort_columns() -> dict[str, pa.Column]:
+    columns = {
+        "objective_id": pa.Column(str, pa.Check.isin(HIRE_OBJECTIVES)),
+        "variant": pa.Column(str, pa.Check.isin(["primary", "with_unverified_exits"])),
+        "grain": pa.Column(str, pa.Check.isin(["quarter", "year", "period"])),
+        "period": _text_column(),
+        "scope": pa.Column(str, pa.Check.isin(["company", "country"])),
+        "country_code": _text_column(),
+        "n": pa.Column(int, pa.Check.ge(0)),
+        "retained": pa.Column(int, pa.Check.ge(0)),
+        "immature_hires": pa.Column(int, pa.Check.ge(0)),
+    }
+    for exit_column in [
+        "exits_voluntary",
+        "exits_involuntary",
+        "exits_end_of_contract",
+        "exits_unknown_type",
+    ]:
+        columns[exit_column] = pa.Column(int, pa.Check.ge(0))
+    columns.update(_rate_columns())
+    return columns
+
+
+RETENTION_COHORTS = pa.DataFrameSchema(
+    _cohort_columns(),
+    strict=True,
+    unique=["objective_id", "variant", "grain", "scope", "country_code", "period"],
+)
+
+
+def _turnover_columns() -> dict[str, pa.Column]:
+    columns = {
+        "variant": pa.Column(
+            str, pa.Check.isin(["primary", "with_unverified_exits", "unknown_as_regretted"])
+        ),
+        "scope": pa.Column(str, pa.Check.isin(["company", "country"])),
+        "country_code": _text_column(),
+        "month_end": pa.Column(Date),
+        "is_year_end": pa.Column(bool),
+        "regretted_exits": pa.Column(int, pa.Check.ge(0)),
+        "unknown_regretted_exits": pa.Column(int, pa.Check.ge(0)),
+        "avg_headcount": pa.Column(float, pa.Check.ge(0)),
+        "headcount_points": pa.Column(int, pa.Check.eq(13)),  # D-20: always 13 month-ends
+        "headcount_at_month_end": pa.Column(int, pa.Check.ge(0)),
+    }
+    columns.update(_rate_columns())
+    return columns
+
+
+REGRETTED_TURNOVER = pa.DataFrameSchema(
+    _turnover_columns(),
+    strict=True,
+    unique=["variant", "scope", "country_code", "month_end"],
+)
+
+
 def check_contract(schema: pa.DataFrameSchema, table: pd.DataFrame, table_name: str) -> None:
     """Validate a table; on failure raise ContractError naming the table and the failing values.
 

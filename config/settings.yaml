@@ -68,6 +68,11 @@ indicators:
                                       # association tests (multinational accounting distortion), and the
                                       # exclusion is reported with the results - never silent
 
+metrics:                              # Step 4
+  report_start: 2021-01-01            # D-23: objectives' effective period starts here; 2020 is history only
+  confidence_level: 0.95              # D-33: Wilson intervals
+  small_sample_below: 10              # D-78: rows with n < 10 get a small_sample warning
+
 analysis:
   bootstrap_iterations: 1000          # D-33
   random_seed: 20260831               # D-48: deterministic reruns (same seed as the data pack)
