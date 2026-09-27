@@ -1,0 +1,13 @@
+{
+  "provider": "eurostat",
+  "indicator": "unemployment",
+  "dataset": "une_rt_m",
+  "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?s_adj=SA&age=TOTAL&sex=T&unit=PC_ACT&geo=EL&geo=RO&geo=PL&geo=IT&geo=IE&geo=BG&sinceTimePeriod=2019-01",
+  "fetched_at": "2026-09-27T12:00:52+00:00",
+  "http_status": 200,
+  "retry_count": 0,
+  "bytes": 12136,
+  "sha256": "bb4d4df9950f64e0727786d80f312438f0271725bc4e491b6c54b265fe7c5399",
+  "observation_count": 547,
+  "latest_source_period": "2026-08"
+}

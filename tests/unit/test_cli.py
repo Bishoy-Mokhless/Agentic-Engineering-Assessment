@@ -20,5 +20,15 @@ def test_serve_port_option():
     assert args.port == 9000
 
 
-def test_run_exits_successfully():
+def test_run_calls_pipeline_with_offline_mode(monkeypatch):
+    calls = []
+    monkeypatch.setattr("retention.cli.run_pipeline", lambda settings, mode: calls.append(mode) or 0)
     assert main(["run"]) == 0
+    assert calls == ["offline"]
+
+
+def test_run_refresh_passes_refresh_mode(monkeypatch):
+    calls = []
+    monkeypatch.setattr("retention.cli.run_pipeline", lambda settings, mode: calls.append(mode) or 0)
+    main(["run", "--refresh"])
+    assert calls == ["refresh"]

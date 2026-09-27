@@ -9,7 +9,7 @@ paths:                                # relative to the project root
   raw: data/raw                       # D-41: untouched source data, kept per fetch date (D-48)
   canonical: data/curated/canonical   # D-41: cleaned, typed, flagged
   analytical: data/curated/analytical # D-41: metrics, joined tables, analysis results
-  hr_source: assessment_files         # supplied HR starter files
+  hr_source: data/raw/hr              # D-65/D-69: supplied HR pack, one folder per as-of date
   mappings: config/mappings           # D-08, D-13: code/label mapping tables
 
 http:                                 # D-47: resilience for external APIs

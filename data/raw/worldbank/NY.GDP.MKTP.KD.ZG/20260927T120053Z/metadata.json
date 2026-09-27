@@ -1,0 +1,13 @@
+{
+  "provider": "worldbank",
+  "indicator": "gdp_growth",
+  "dataset": "NY.GDP.MKTP.KD.ZG",
+  "url": "https://api.worldbank.org/v2/country/GRC;ROU;POL;ITA;IRL;BGR/indicator/NY.GDP.MKTP.KD.ZG?format=json&date=2019%3A2025&per_page=1000",
+  "fetched_at": "2026-09-27T12:00:53+00:00",
+  "http_status": 200,
+  "retry_count": 0,
+  "bytes": 9070,
+  "sha256": "a45d994801f3a5ed65b154c34fade9878bfda15400b725f726f3844de7743e51",
+  "observation_count": 42,
+  "latest_source_period": "2025"
+}

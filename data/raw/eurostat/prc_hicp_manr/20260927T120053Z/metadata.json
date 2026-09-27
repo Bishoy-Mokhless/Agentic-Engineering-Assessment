@@ -1,0 +1,13 @@
+{
+  "provider": "eurostat",
+  "indicator": "inflation",
+  "dataset": "prc_hicp_manr",
+  "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?coicop=CP00&geo=EL&geo=RO&geo=PL&geo=IT&geo=IE&geo=BG&sinceTimePeriod=2019-01",
+  "fetched_at": "2026-09-27T12:00:53+00:00",
+  "http_status": 200,
+  "retry_count": 0,
+  "bytes": 11813,
+  "sha256": "f21fc243ee84db4f475907673ac59c931551f3925a221716bdf68f732c7c7605",
+  "observation_count": 504,
+  "latest_source_period": "2025-12"
+}

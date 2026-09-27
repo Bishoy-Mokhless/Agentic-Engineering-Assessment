@@ -76,9 +76,21 @@ class Settings(BaseModel):
 
 
 def load_settings(path: Path | None = None) -> Settings:
-    """Read the YAML file, resolve relative paths against the project root, validate."""
-    settings_file = path or DEFAULT_SETTINGS_FILE
-    with open(settings_file, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    data["paths"] = {name: PROJECT_ROOT / value for name, value in data["paths"].items()}
+    """Read config/settings.yaml and return a validated Settings object.
+
+    Raises a clear error at startup if a setting is missing or has the wrong type.
+    """
+    # 1. Read the YAML file into plain Python dicts and lists.
+    if path is None:
+        path = DEFAULT_SETTINGS_FILE
+    with open(path, encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+
+    # 2. Paths in the YAML are relative ("data/raw"); make them absolute from the project root.
+    absolute_paths = {}
+    for name, relative_path in data["paths"].items():
+        absolute_paths[name] = PROJECT_ROOT / relative_path
+    data["paths"] = absolute_paths
+
+    # 3. Validate and convert into typed objects (like binding @ConfigurationProperties).
     return Settings.model_validate(data)

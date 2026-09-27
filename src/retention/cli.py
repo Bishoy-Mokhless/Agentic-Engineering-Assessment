@@ -9,6 +9,7 @@ import argparse
 import logging
 
 from retention.config import load_settings
+from retention.pipeline.job import run_pipeline
 
 log = logging.getLogger("retention")
 
@@ -54,8 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         log.info(
             "Settings loaded: %d countries, %d indicators", len(settings.countries), len(settings.indicators)
         )
-        log.info("Pipeline mode: %s. Pipeline steps are added from Step 2 onwards.", mode)
-        return 0
+        return run_pipeline(settings, mode)
 
     if args.command == "serve":
         log.info("API/dashboard are added in Step 6 (would listen on http://%s:%d).", args.host, args.port)

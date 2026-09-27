@@ -84,6 +84,12 @@ This log is the source for:
 | D-62 | 10 | Source status + run lineage | Status record per source; run_id + raw snapshot refs (refines D-47, D-48) | ✏️ My critical review |
 | D-63 | 10 | Statistical language | Associative wording only; banned phrases listed | ✏️ My critical review |
 | D-64 | 10b | CI reversed | No GitHub Actions; local tests run manually; CI may be added later (**reverses D-60, restores D-51**) | ✏️ My own answer |
+| D-65 | 11 | HR starter files location | Move `assessment_files/` into `data/raw/hr/`; verify checksums vs manifest | ❌ Changed (agent recommended copy, keep original) |
+| D-66 | 11 | Replay data in git | Commit one real refresh of raw snapshots | ✅ Yes |
+| D-67 | 11 | 90-day flag name | `UNVERIFIED_EXIT` (confirms D-57) | ✅ Yes |
+| D-68 | 11 | Source status in offline mode | New 4th status `replayed` | ✅ Yes |
+| D-69 | 11 | HR snapshot folder name | Pack as-of date: `data/raw/hr/2025-12-31/` | ✅ Yes |
+| D-70 | 11 | Code style | Simple, explainable style everywhere: plain loops, one idea per line, commented steps | ✅ Yes |
 
 ---
 
@@ -1667,6 +1673,70 @@ The business question ("do external conditions help explain retention?") is abou
 
 ---
 
+## Round 11: Ingestion decisions (Step 2)
+
+### D-65: HR starter files location
+| Option | Notes |
+|---|---|
+| Copy into `data/raw/hr/` after checksum check ⭐ | Keep `assessment_files/` as original drop |
+| **Move `assessment_files/` into `data/raw/hr/`** ✅ | One copy only |
+| Leave in place, read directly | HR outside the raw layer |
+
+**What it means:** the supplied files now live in the raw layer like every other source. They are not duplicated. Git records the move as a **rename**, so history still shows the files as originally delivered (commit `b0b7993`) and then moved.
+**Why:** a single copy avoids two versions drifting apart. The SHA-256 check against the manifest (verified: all 3 files match exactly in hash and byte size) proves the moved files are the ones supplied.
+- **AI_USAGE note:** agent recommended copying and keeping the original; I preferred a single copy.
+
+### D-66: Commit replay data
+| Option | Notes |
+|---|---|
+| **Yes, commit one real refresh** ⭐ ✅ | `retention run --offline` works immediately for reviewers |
+| No, only small test fixtures | Reviewers must fetch live data first |
+
+**Why:** the brief asks for "replay data for network-independent review". With the snapshots committed, a reviewer gets exactly our numbers without internet. The files are small.
+
+### D-67: Flag name `UNVERIFIED_EXIT` (confirms D-57)
+Neutral name: the exit cannot be verified. It makes no claim that the date is a placeholder.
+
+### D-68: Source status in offline mode: `replayed`
+| Option | Notes |
+|---|---|
+| **New status `replayed`** ⭐ ✅ | fresh / replayed / stale / unavailable |
+| Use `stale` | Mixes "failed" with "offline by choice" |
+| Use `fresh` | Conflicts with "never present stale as fresh" |
+
+**What it means (the 4 statuses):**
+| Status | Meaning |
+|---|---|
+| `fresh` | Fetched successfully **in this run** (`--refresh`) |
+| `replayed` | **Deliberately** loaded from a saved snapshot (`--offline`), shown with the snapshot's original fetch date |
+| `stale` | A fetch **was attempted and failed**; the last good snapshot was used instead |
+| `unavailable` | No usable data at all (fetch failed or offline, and no snapshot exists) |
+
+**Why:** D-62 defined fresh/stale/unavailable for refresh runs, but the offline mode (the reviewers' default) fetches nothing *by design*. Calling that "stale" would make a normal replay look like a failure; calling it "fresh" would break the "never stale-as-fresh" rule. `replayed` is honest about both.
+
+### D-69: HR snapshot folder name
+| Option | Notes |
+|---|---|
+| **Pack as-of date: `2025-12-31`** ⭐ ✅ | The date the workforce data describes |
+| Pack version: `v1.0` | Less clear what time it covers |
+| No subfolder | Inconsistent with dated snapshots |
+
+**Why:** API snapshots are named by fetch time; the HR pack was delivered, not fetched, so its natural "date" is the as-of date in the manifest. A future HR extract would get its own folder.
+
+### D-70: Simple, explainable code style
+- **Context:** Reviewing Step 2, I asked whether `repository/mappings.py` could be written more simply. The agent showed the compact version (list/dict comprehensions) next to a plain-loop version and its Java equivalent.
+- **Decision:** apply the simple style **everywhere**, rewriting Step 1 and Step 2 code now and following it in all future steps:
+  - plain `for` loops instead of comprehensions (Java-like)
+  - one idea per line; intermediate variables with clear names
+  - short numbered comments for the steps inside a function
+  - docstring with an input → output example where it helps
+  - error messages that say exactly what is wrong and where to fix it
+- **Why:** the brief says "do not submit code you cannot explain". Slightly longer code that reads like my Java is easier to explain and defend in the interview.
+- **Guarantee:** behaviour must not change. The same tests must pass before and after the rewrite.
+- **Allowed exceptions:** very small, obvious one-liners where a loop would be noisier. Pandas/SQL code in later steps follows the library's normal style, with comments.
+
+---
+
 ## Implementation log
 
 ### Step 1: Project skeleton (2026-09-27)
@@ -1677,6 +1747,42 @@ The business question ("do external conditions help explain retention?") is abou
 **Installed versions:** pandas 2.3.3, pyarrow 25.0.1, duckdb 1.5.5, requests 2.34.2, pydantic 2.13.5, pandera 0.33.1, numpy 2.4.6, scipy 1.17.1, fastapi 0.141.1, uvicorn 0.54.0, pytest 9.1.1, pytest-playwright 0.9.0, ruff 0.16.9.
 **Decision changes:** none at the time; Round 10 (D-54…D-64) later refined config and tests (11 tests).
 **Review:** I ran the checks myself (activate venv in cmd with `activate.bat`, `retention --help`, `retention run`, `ruff check .`, `ruff format --check .`, `pytest` → 11 passed, `git status`). All passed; I confirmed and committed Step 1 myself.
+
+### Step 2: Ingestion (2026-09-27)
+**Built:**
+- `client/http.py` (session with timeout + retry/backoff, `SourceError`)
+- `client/eurostat.py`, `client/worldbank.py` (request building + response validation)
+- `client/hr_files.py` (SHA-256 check vs manifest)
+- `repository/raw_repository.py` (dated snapshots, `latest.json`, never overwrite)
+- `repository/mappings.py` (provider country codes)
+- `domain/source_status.py` (4 statuses)
+- `pipeline/ingest.py`, `pipeline/run_summary.py`, `pipeline/job.py`; CLI `run` now calls the job
+- Tests: `test_clients.py`, `test_raw_and_hr.py`, `test_ingest.py`, updated `test_cli.py` (30 tests total)
+
+**Decisions implemented:** D-08, D-24…D-27, D-41, D-47, D-48, D-49, D-62, D-65, D-66, D-68, D-69.
+
+**Verified:**
+- `pytest`: 30 passed; `ruff check .` and `ruff format --check .` clean.
+- `retention run --offline` before any fetch → all 4 indicators `unavailable` with the hint "run `retention run --refresh` first", exit code 1, HR pack `replayed`.
+- `retention run --refresh` → all 4 `fresh`; latest periods: unemployment 2026-08, inflation 2025-12, job vacancy 2025-Q4, GDP 2025 (consistent with Round 5 research). Job vacancy: 168 observations = 6 countries × 28 quarters.
+- `retention run` (offline) → all `replayed` from the saved snapshots, exit code 0.
+- Raw API snapshots total ~40 KB.
+
+**Issues met:**
+- One test failed at first: the fake client reused the same timestamp, so the second run tried to write a snapshot folder with the same name, and the repository correctly refused to overwrite it (D-48). Fixed in the test (the fake clock now advances), not in the code.
+- ruff fixed one import ordering.
+
+**Rule added while coding:** an HTTP 200 response with **zero observations** is treated as a failure (`SourceError`). This comes straight from the Round 5 lesson, where the wrong code `JOBRATE` returned HTTP 200 with no data.
+
+**Decision changes:** none.
+
+**Open for later:** `data/curated/run_summary.json` changes on every run. Whether to commit generated curated outputs will be decided when Step 3 creates them.
+
+**Style rewrite (D-70):**
+- Files rewritten: `config.py` (Step 1), `repository/mappings.py`, `client/http.py`, `client/eurostat.py`, `client/worldbank.py`, `client/hr_files.py`, `repository/raw_repository.py`, `pipeline/ingest.py`, `pipeline/run_summary.py`, `pipeline/job.py`.
+- What changed: comprehensions replaced by plain loops; numbered step comments; docstrings with examples; clearer names (e.g. `_use_latest_snapshot`, `_check_hr_pack`); keyword arguments when building status objects.
+- Unchanged: `cli.py` and `domain/source_status.py` were already simple.
+- Behaviour check: the same 30 tests pass; `retention run` gives the identical status table.
 
 ---
 

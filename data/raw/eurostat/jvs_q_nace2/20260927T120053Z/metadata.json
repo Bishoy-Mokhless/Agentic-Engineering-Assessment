@@ -1,0 +1,13 @@
+{
+  "provider": "eurostat",
+  "indicator": "job_vacancy",
+  "dataset": "jvs_q_nace2",
+  "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/jvs_q_nace2?nace_r2=B-S&sizeclas=TOTAL&indic_em=JVR&s_adj=NSA&geo=EL&geo=RO&geo=PL&geo=IT&geo=IE&geo=BG&sinceTimePeriod=2019-Q1",
+  "fetched_at": "2026-09-27T12:00:53+00:00",
+  "http_status": 200,
+  "retry_count": 0,
+  "bytes": 5859,
+  "sha256": "bedb1db06a8963a7de3f383580f74f285e0c44ce1c0a8c80a311eae54d0512c1",
+  "observation_count": 168,
+  "latest_source_period": "2025-Q4"
+}

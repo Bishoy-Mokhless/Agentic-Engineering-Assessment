@@ -1,0 +1,63 @@
+{
+  "run_id": "run-20260927T155343Z",
+  "mode": "offline",
+  "started_at": "2026-09-27T15:53:43+00:00",
+  "finished_at": "2026-09-27T15:53:43+00:00",
+  "sources": [
+    {
+      "provider": "eurostat",
+      "indicator": "unemployment",
+      "dataset": "une_rt_m",
+      "status": "replayed",
+      "snapshot": "eurostat/une_rt_m/20260927T120052Z",
+      "source_period": "2026-08",
+      "loaded_at": "2026-09-27T12:00:52+00:00",
+      "retry_count": 0,
+      "error": null
+    },
+    {
+      "provider": "eurostat",
+      "indicator": "inflation",
+      "dataset": "prc_hicp_manr",
+      "status": "replayed",
+      "snapshot": "eurostat/prc_hicp_manr/20260927T120053Z",
+      "source_period": "2025-12",
+      "loaded_at": "2026-09-27T12:00:53+00:00",
+      "retry_count": 0,
+      "error": null
+    },
+    {
+      "provider": "eurostat",
+      "indicator": "job_vacancy",
+      "dataset": "jvs_q_nace2",
+      "status": "replayed",
+      "snapshot": "eurostat/jvs_q_nace2/20260927T120053Z",
+      "source_period": "2025-Q4",
+      "loaded_at": "2026-09-27T12:00:53+00:00",
+      "retry_count": 0,
+      "error": null
+    },
+    {
+      "provider": "worldbank",
+      "indicator": "gdp_growth",
+      "dataset": "NY.GDP.MKTP.KD.ZG",
+      "status": "replayed",
+      "snapshot": "worldbank/NY.GDP.MKTP.KD.ZG/20260927T120053Z",
+      "source_period": "2025",
+      "loaded_at": "2026-09-27T12:00:53+00:00",
+      "retry_count": 0,
+      "error": null
+    },
+    {
+      "provider": "hr",
+      "indicator": "hr_pack",
+      "dataset": "hr",
+      "status": "replayed",
+      "snapshot": "hr/2025-12-31",
+      "source_period": "2025-12-31",
+      "loaded_at": null,
+      "retry_count": 0,
+      "error": null
+    }
+  ]
+}
