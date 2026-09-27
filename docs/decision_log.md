@@ -2001,6 +2001,101 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 - **Why:** simpler page and one consistent look for the demo and the screenshots.
 - **Not kept:** automatic dark mode (followed the OS setting). Nothing else depended on it; no test checked it.
 
+### D-84: Dashboard redesign, "verdict-first report" (🔁 builds on the Step 7 agent choices)
+- **What I said:** use the frontend-design skill to improve the dashboard's UI/UX, and use the superpowers skills for all work in this repo. The process was: brainstorming (bounded change, short design in chat, my approval), then TDD, then screenshot review.
+
+| Question | Options | Chosen |
+|---|---|---|
+| Who is it for? | ⭐ The live demo / an HR leader alone / a technical reviewer | ✏️ The live demo, and it should also help me remember my findings and words |
+| Where do the findings go? | ⭐ Visible finding + hidden presenter notes / always-visible findings / a separate Findings tab | ✏️ Blended into the page as plain description that anyone can understand (code reviewer, HR, me): no separate "notes" |
+| Fixed or data-built sentences? | ⭐ Built from the data (change with the filters) ✅ / fixed text / both | Built from the data |
+| Visual direction | ⭐ Verdict-first report ✅ / workforce file / keep the look, fix the UX | Verdict-first report |
+
+- **What changed:**
+  - Each tab opens with a **finding sentence** (Source Serif 4, the one bold element) and a "What this means" line, both built in `app.js` from the API numbers on screen.
+    - Explore: rate, retained of n, and the verdict from the interval (D-75), then the year pattern, the main exit type and the hires not yet measurable.
+    - Understand: the three verdicts, then how the chosen signal moved.
+    - Challenge: how many of the 4 formal tests show a clear association, the strongest result, and the D-63 wording.
+    - Trust: reconciliation, sensitivity, source status.
+  - Look:
+    - Palette: cool white paper `#F6F8F9`, ink blue `#172B3A`, one slate-blue accent `#3553A5`.
+    - Type: Public Sans for the interface.
+    - Structure: thin rules instead of boxed cards, numbered tabs (they are the demo order), all six filters on one row.
+    - Country and status colours are unchanged (validated in Step 7).
+  - Challenge: the 4 formal tests are on top, each with an interval bar (scale −1…+1). The 8 descriptive views are folded under "Show the descriptive views", and the long result sentences are now short labels.
+  - Trust: short licence names (full text on hover and in `/api/sources`), and the long source notes fold into each row.
+- **Why:** the old page showed numbers first and made the reader work out the answer. Now the answer is readable by anyone before the evidence, and the page doubles as my talking points without a separate script.
+
+**🤖 Agent choices inside D-84**
+| Choice | Taken | Not taken |
+|---|---|---|
+| Fonts | 🤖 Stored in `dashboard/vendor/fonts` (woff2, ~76 KB, SIL Open Font License files included) so the page stays offline, like Chart.js | Google Fonts link (breaks offline review) |
+| "Clear association" threshold | 🤖 `/api/association` now also returns `alpha` (0.05 from settings, D-34); the page counts rows with Holm p < alpha instead of hard-coding 0.05 (only API change; API test added) | Hard-code 0.05 in JavaScript |
+| Data-treatment labels | 🤖 Shortened to "Primary", "Unverified exits counted", "Unknown counted as regretted" so the one-row filter bar is not cut off; the full meaning stays in the Trust sensitivity table | Keep the long labels (cut off on screen) |
+
+- **Tests (TDD):** 8 new tests were written first and failed first: 7 UI tests (finding sentences for each tab, sentences following the filters, fonts loaded from the repo) and 1 API test (`alpha`). 153 tests pass.
+- **AI_USAGE note:** my first test said "Unemployment rate fell in 6 of 6 countries". Before trusting it, I checked the curated data: Romania went from 6.0 (2021-01) to 6.1 (2025-12), so it **rose**. The test was corrected to "5 of 6". The page now says "it rose in Romania".
+
+### D-85: Back to the old look, with colour per block and more descriptions ✏️ (⛔ replaces the visual part of D-84; 🔁 keeps its content)
+- **What I said:** after running it: "the old design is better … keep the old one but have the sections split by colours and add more descriptions; the new UI is ugly".
+
+| Question | Options | Chosen |
+|---|---|---|
+| What does "split by colours" mean? | ⭐ One colour per tab / colour per block inside each tab ✅ / both | Colour per block inside each tab |
+
+- **Reverted (from D-84):**
+  - the Step 7 stylesheet and page structure are restored: system font, rounded cards, blue accent, old header, filters and tab titles;
+  - the Public Sans / Source Serif 4 fonts and `dashboard/vendor/fonts` are removed, with their UI test;
+  - the chart font change is removed;
+  - the long data-treatment labels are back (the filters wrap onto two rows again, as before).
+- **Kept (from D-84):**
+  - the data-built finding sentence and "What this means" line on every tab;
+  - `alpha` in `/api/association`;
+  - Challenge with the 4 formal tests on top, interval bars, and the 8 descriptive views folded away;
+  - shorter Trust sources table;
+  - "Retention rate" in the chart legend instead of the objective code.
+- **Colour per block (same on every tab):**
+  - **light blue:** "What this shows" (the finding);
+  - **white cards:** key numbers and charts;
+  - **light grey:** tables;
+  - **light yellow:** notes and caveats.
+  - Green, red and amber stay reserved for met / not met / inconclusive (D-75).
+- **More descriptions:** a short plain-English "how to read this" line under every table and chart heading, for example what rho and Holm p mean, what the shaded band is, and what "replayed" means.
+- **Tests:** 152 pass (the font test was removed; the finding-sentence tests still apply).
+- **AI_USAGE note (D-85):** my first redesign (D-84) followed the frontend-design skill's "distinctive" direction. I rejected it after seeing it running. The lesson: for a reviewer-facing dashboard, familiar and clear beat distinctive. Only the content improvements were kept.
+
+### D-86: Combine several workforce segment fields (🔁 extends D-77)
+- **What I said:** the segment filter should allow filtering on several fields together (e.g. employment type AND career level), but without adding 4–5 more dropdowns next to each other.
+- **Evidence shown (mature new hires, 2021–2025):**
+
+| Slice | Hires |
+|---|---|
+| Fixed Term, whole company | 336 |
+| Fixed Term + Manager, whole company | 106 |
+| Fixed Term + Manager + Romania | 13 in total, 1–4 per year |
+
+  - Each job family belongs to exactly one business unit (Digital = Data, Product, Software).
+  - Combinations shrink fast. The existing small-sample flag (D-78) and "no hires match" message cover this.
+
+| Option | Notes |
+|---|---|
+| **One button + small panel** ⭐ ✅ | The row keeps one "Workforce segment" button; a panel holds 4 short lists + Apply / Clear; active choices show as removable chips |
+| "+ Add filter" chips | No dropdown; two clicks per filter |
+| One list with several picks | Closest to today, but a long list and it is less clear what is active |
+
+- **What it means:**
+  - One value per field, and the fields combine with **AND**.
+  - The API takes a repeated `segment` parameter (`?segment=employment_type:Fixed Term&segment=career_level:Manager`) and recomputes with the same SQL (D-77). The old single form still works.
+  - The same field twice returns **400** ("choose one value per field"): two values of one field would mean OR, and the page never asks for that.
+  - `/api/filters` also returns `job_families_by_unit`, so choosing a business unit narrows the job family list.
+  - For turnover the button is disabled, as before (segments apply to hire cohorts only).
+  - The finding sentences, the Explore label and Understand use the combined segment.
+- **Why chosen:** it scales to four fields while the filter row stays one control wide, and the chips always show what is active.
+- **Tests (TDD, all written first and seen failing):**
+  - API (3): AND gives n = 106; the same field twice gives 400; job families by unit.
+  - UI (4): combine + chips; remove one chip, then clear all; unit narrows job families; Escape closes without applying.
+  - 2 existing UI tests now use the panel.
+
 ---
 
 ## Implementation log

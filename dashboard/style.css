@@ -1,4 +1,4 @@
-/* Dashboard styles. Colours are defined once as tokens. Light theme only (D-83: dark mode removed).
+/* Dashboard styles. Colours are defined once as tokens. Light theme only (D-83); colour per block (D-85).
    Palette: validated categorical order (dataviz reference palette), status colours reserved for status. */
 
 :root {
@@ -200,4 +200,154 @@ tr.formal td { font-weight: 600; }
   .field { min-width: calc(50% - 6px); }
   .tile .tile-value { font-size: 1.5rem; }
   .chart-box { height: 240px; }
+}
+
+/* ---- D-85: colour per block (old look kept) --------------------------------------------------
+   light blue = what this shows (plain-language finding) · white = key numbers and charts
+   light grey = tables · light yellow = notes and caveats.
+   Green, red and amber stay reserved for met / not met / inconclusive. */
+
+:root {
+  --band-finding: #eaf2fc;
+  --band-finding-edge: #2a78d6;
+  --band-table: #f0f0ec;
+  --band-notes: #fdf6dc;
+  --band-notes-edge: #ecd98f;
+}
+
+.finding {
+  margin: 12px 0 4px;
+  padding: 14px 18px;
+  background: var(--band-finding);
+  border-left: 4px solid var(--band-finding-edge);
+  border-radius: 8px;
+}
+.finding-kicker { margin: 0 0 4px; font-size: 0.8rem; font-weight: 700; color: var(--band-finding-edge); }
+.finding-text { margin: 0; font-size: 1.08rem; font-weight: 600; line-height: 1.45; max-width: 900px; }
+.finding-text .status { margin-left: 8px; vertical-align: 1px; }
+.finding-meaning { margin: 8px 0 0; color: var(--text-2); max-width: 900px; }
+.finding-meaning strong { color: var(--text); }
+
+.table-band {
+  margin-top: 16px;
+  padding: 4px 14px 12px;
+  background: var(--band-table);
+  border-radius: 10px;
+}
+.table-band h3 { margin-top: 12px; }
+
+.notes-band {
+  margin-top: 16px;
+  padding: 10px 16px 6px;
+  background: var(--band-notes);
+  border: 1px solid var(--band-notes-edge);
+  border-radius: 10px;
+}
+.notes-band .notes { margin: 4px 0 8px; }
+.notes-title { margin: 0; font-weight: 700; font-size: 0.88rem; }
+
+.help { margin: 0 0 8px; color: var(--text-2); font-size: 0.86rem; max-width: 900px; }
+figcaption + .help { margin-top: -4px; }
+
+/* Challenge: interval bar for a correlation on a -1 ... +1 scale, zero in the middle. */
+.ci-bar { position: relative; display: inline-block; width: 160px; height: 16px; vertical-align: middle; }
+.ci-bar::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--grid); }
+.ci-bar .zero { position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px dashed var(--axis); }
+.ci-bar .range { position: absolute; top: 5px; height: 6px; border-radius: 3px; background: var(--band); border: 1px solid var(--accent); }
+.ci-bar .point { position: absolute; top: 3px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); }
+
+.cell-sub { display: block; color: var(--text-2); font-weight: 400; font-size: 0.8rem; }
+.cell-sub-inline { color: var(--text-2); font-weight: 400; font-size: 0.8rem; margin-left: 6px; white-space: nowrap; }
+.cell-note { color: var(--text-2); font-size: 0.82rem; max-width: 52ch; margin: 4px 0 0; }
+td details { margin-top: 2px; }
+td summary { font-size: 0.8rem; }
+
+/* ---- D-86: workforce segment button, panel and chips ------------------------------------- */
+
+.segment-field { position: relative; }
+.segment-button {
+  font: inherit;
+  text-align: left;
+  padding: 6px 30px 6px 8px;
+  border: 1px solid var(--axis);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  min-height: 36px;
+  min-width: 190px;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  /* the same small arrow a select shows */
+  background-image: linear-gradient(45deg, transparent 50%, var(--text) 50%), linear-gradient(135deg, var(--text) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.segment-button[aria-expanded="true"] { border-color: var(--accent); }
+.segment-button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.segment-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--axis);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(11, 11, 11, 0.14);
+}
+.segment-panel .field { min-width: 0; }
+.segment-panel-help { margin: 0; font-size: 0.82rem; color: var(--text-2); }
+.segment-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+.button-primary, .button-secondary {
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: 6px;
+  min-height: 34px;
+  cursor: pointer;
+}
+.button-primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); font-weight: 600; }
+.button-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--axis); }
+
+.segment-bar {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.segment-bar-label { color: var(--text-2); font-weight: 600; }
+.segment-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.segment-chips button {
+  font: inherit;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--band-finding-edge);
+  background: var(--band-finding);
+  color: var(--text);
+  cursor: pointer;
+}
+.segment-chips button .chip-field { color: var(--text-2); }
+.segment-chips button .chip-x { font-weight: 700; color: var(--text-2); }
+.segment-chips button:hover .chip-x { color: var(--critical); }
+.link-button { font: inherit; font-size: 0.85rem; background: none; border: none; color: var(--accent); cursor: pointer; text-decoration: underline; padding: 2px 4px; }
+
+@media (max-width: 600px) {
+  .segment-button { max-width: none; width: 100%; }
+  .segment-panel { width: min(300px, calc(100vw - 32px)); }
 }

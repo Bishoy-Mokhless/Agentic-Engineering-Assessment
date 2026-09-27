@@ -99,6 +99,28 @@ def test_segment_filter_recomputes_and_segments_add_up_to_the_total(client):
     assert fixed["rows"][0]["retained"] + permanent["rows"][0]["retained"] == total["retained"]
 
 
+def test_several_segments_combine_with_and(client):
+    # D-86: repeat `segment` to combine fields. Fixed Term AND Manager = 106 mature new hires (2021-2025).
+    both = "segment=employment_type:Fixed Term&segment=career_level:Manager"
+    url = "/api/retention/cohorts?grain=period&" + both
+    body = get_ok(client, url)
+    assert body["rows"][0]["n"] == 106
+    assert body["filters"]["segment"] == ["employment_type:Fixed Term", "career_level:Manager"]
+    assert "employment_type = Fixed Term and career_level = Manager" in body["computed"]
+
+
+def test_the_same_segment_field_twice_is_rejected(client):
+    url = "/api/retention/cohorts?segment=employment_type:Fixed Term&segment=employment_type:Permanent"
+    response = client.get(url)
+    assert response.status_code == 400
+    assert "employment_type is given more than once" in response.json()["error"]["message"]
+
+
+def test_filters_list_the_job_families_of_each_business_unit(client):
+    body = get_ok(client, "/api/filters")
+    assert body["job_families_by_unit"]["Digital"] == ["Data", "Product", "Software"]
+
+
 def test_segment_with_no_hires_returns_an_empty_list_not_an_error(client):
     # Senior hires are Senior Leaders by definition (D-14), so career_level Manager has none.
     body = get_ok(client, "/api/retention/cohorts?objective=SENIOR_HIRE_12M&segment=career_level:Manager")
@@ -147,6 +169,12 @@ def test_association_formal_results_first(client):
     assert [row["view"] for row in rows[:4]] == ["within_country"] * 4
     assert all(row["p_holm"] is not None for row in rows[:4])
     assert all(row["p_holm"] is None for row in rows[4:])
+
+
+def test_association_reports_the_significance_level(client):
+    # The dashboard counts "clear association" rows with this value instead of hard-coding it (D-84).
+    body = get_ok(client, "/api/association?objective=NEW_HIRE_6M")
+    assert body["alpha"] == 0.05
 
 
 def test_association_points_are_demeaned_and_exclusions_marked(client):

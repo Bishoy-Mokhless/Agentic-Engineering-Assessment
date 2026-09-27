@@ -143,6 +143,27 @@ def parse_segment(segment: str | None) -> tuple[str, str] | None:
     return dimension, value
 
 
+def parse_segments(segments: list[str] | None) -> list[tuple[str, str]]:
+    """Several segment filters, combined with AND (D-86). One value per field.
+
+    Example: ["employment_type:Fixed Term", "career_level:Manager"]
+          -> [("employment_type", "Fixed Term"), ("career_level", "Manager")]
+    """
+    parsed = []
+    seen = []
+    for segment in segments or []:
+        # 1. Each entry is one "dimension:value" filter; empty entries are ignored.
+        pair = parse_segment(segment)
+        if pair is None:
+            continue
+        # 2. The same field twice would be OR, not AND: refuse it instead of guessing.
+        if pair[0] in seen:
+            raise InvalidFilterError(f"{pair[0]} is given more than once; choose one value per field")
+        seen.append(pair[0])
+        parsed.append(pair)
+    return parsed
+
+
 def keep_rows(table: pd.DataFrame, keep: list[bool]) -> pd.DataFrame:
     """Keep the rows marked True. (table[keep] with an EMPTY list would select zero COLUMNS.)"""
     mask = pd.Series(keep, index=table.index, dtype=bool)
@@ -234,6 +255,12 @@ def filters(store: CuratedStore, settings: Settings) -> dict:
     for dimension in SEGMENT_DIMENSIONS:
         segments[dimension] = sorted(hires[dimension].dropna().unique().tolist())
 
+    # Each job family belongs to one business unit: the segment panel narrows the list (D-86).
+    job_families_by_unit = {}
+    for unit in segments["business_unit"]:
+        unit_hires = hires[hires["business_unit"] == unit]
+        job_families_by_unit[unit] = sorted(unit_hires["job_family"].dropna().unique().tolist())
+
     years = sorted(cohorts[cohorts["grain"] == "year"]["period"].unique().tolist())
     quarters = sorted(cohorts[cohorts["grain"] == "quarter"]["period"].unique().tolist())
 
@@ -253,6 +280,7 @@ def filters(store: CuratedStore, settings: Settings) -> dict:
         "countries": countries,
         "objectives": objectives,
         "segments": segments,
+        "job_families_by_unit": job_families_by_unit,
         "years": years,
         "quarters": quarters,
         "grains": ["quarter", "year", "period"],
@@ -277,38 +305,41 @@ def cohorts(
     country: str,
     grain: str,
     variant: str,
-    segment: str | None,
+    segment: list[str] | None,
     year_from: int | None,
     year_to: int | None,
 ) -> dict:
     """Hire-retention rows (NEW_HIRE_6M / SENIOR_HIRE_12M).
 
-    Without a segment: the precomputed table. With a segment: recomputed on request from the
-    hire-level table with exactly the same SQL and rules (D-77).
+    Without a segment: the precomputed table. With one or more segments (combined with AND, D-86):
+    recomputed on request from the hire-level table with exactly the same SQL and rules (D-77).
     """
     meta = objective_meta(store, settings, objective)
     if objective not in HIRE_OBJECTIVES:
         raise InvalidFilterError(f"{objective} is not a hire cohort objective; use /api/retention/turnover")
     check_country(settings, country)
     check_years(year_from, year_to)
-    parsed_segment = parse_segment(segment)
+    parsed_segments = parse_segments(segment)
 
-    # 1. Get the table: precomputed, or recomputed for one segment.
-    if parsed_segment is None:
+    # 1. Get the table: precomputed, or recomputed for the chosen segments.
+    if len(parsed_segments) == 0:
         table = store.table("analytical", "retention_cohorts")
         computed = "precomputed by the pipeline"
     else:
-        dimension, value = parsed_segment
-        hires = store.table("analytical", "hire_outcomes")
-        known_values = sorted(hires[dimension].unique().tolist())
-        if value not in known_values:
-            raise NotFoundError(f"unknown {dimension} value '{value}' (known: {', '.join(known_values)})")
-        hires = hires[hires[dimension] == value]
+        all_hires = store.table("analytical", "hire_outcomes")
+        hires = all_hires
+        descriptions = []
+        for dimension, value in parsed_segments:
+            known_values = sorted(all_hires[dimension].unique().tolist())
+            if value not in known_values:
+                raise NotFoundError(f"unknown {dimension} value '{value}' (known: {', '.join(known_values)})")
+            hires = hires[hires[dimension] == value]
+            descriptions.append(f"{dimension} = {value}")
         objectives = store.table("canonical", "objectives")
         con = duckdb.connect()
         table = compute_retention_cohorts(con, hires, objectives, settings)
         con.close()
-        computed = f"computed on request for {dimension} = {value} (D-77)"
+        computed = f"computed on request for {' and '.join(descriptions)} (D-77, D-86)"
 
     # 2. Filter to the requested slice.
     scope = "company" if country == COMPANY else "country"
@@ -499,6 +530,7 @@ def association(store: CuratedStore, settings: Settings, objective: str | None) 
     table = table.sort_values(["objective_id", "view_order", "indicator"]).drop(columns=["view_order"])
     return {
         "rows": records(table),
+        "alpha": settings.analysis.alpha,  # D-84: the dashboard counts clear associations with this level
         "notes": [
             "Formal test: within-country Spearman, Holm-corrected over 4 tests per objective (D-54, D-55).",
             "Pooled and time-adjusted views are descriptive context only (D-54, D-79).",

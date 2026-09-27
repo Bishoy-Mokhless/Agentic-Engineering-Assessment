@@ -31,9 +31,33 @@
       <label for="f-country">Country</label>
       <select id="f-country"></select>
     </div>
-    <div class="field">
+    <!-- Workforce segment (D-86): one button + a small panel, so four fields do not crowd the row. -->
+    <div class="field segment-field">
       <label for="f-segment">Workforce segment</label>
-      <select id="f-segment"></select>
+      <button type="button" id="f-segment" class="segment-button" aria-haspopup="dialog" aria-expanded="false" aria-controls="segment-panel">All employees</button>
+      <div id="segment-panel" class="segment-panel" role="dialog" aria-label="Choose a workforce segment" hidden>
+        <p class="segment-panel-help">Pick up to one value per field. The fields combine: Fixed Term + Manager means hires who are both.</p>
+        <div class="field">
+          <label for="seg-employment_type">Employment type</label>
+          <select id="seg-employment_type" data-dimension="employment_type"></select>
+        </div>
+        <div class="field">
+          <label for="seg-career_level">Career level</label>
+          <select id="seg-career_level" data-dimension="career_level"></select>
+        </div>
+        <div class="field">
+          <label for="seg-business_unit">Business unit</label>
+          <select id="seg-business_unit" data-dimension="business_unit"></select>
+        </div>
+        <div class="field">
+          <label for="seg-job_family">Job family</label>
+          <select id="seg-job_family" data-dimension="job_family"></select>
+        </div>
+        <div class="segment-actions">
+          <button type="button" id="seg-clear" class="button-secondary">Clear</button>
+          <button type="button" id="seg-apply" class="button-primary">Apply</button>
+        </div>
+      </div>
     </div>
     <div class="field">
       <label for="f-from">From year</label>
@@ -49,6 +73,13 @@
     </div>
   </section>
 
+  <!-- Active segment filters as removable chips (D-86). -->
+  <div id="segment-bar" class="segment-bar" hidden>
+    <span class="segment-bar-label">Filtered to:</span>
+    <div id="segment-chips" class="segment-chips" aria-label="Active segment filters"></div>
+    <button type="button" id="segment-clear-all" class="link-button">Clear all</button>
+  </div>
+
   <nav class="tabs" role="tablist" aria-label="Dashboard views">
     <button role="tab" id="tab-explore" aria-controls="panel-explore" aria-selected="true">Explore</button>
     <button role="tab" id="tab-understand" aria-controls="panel-understand" aria-selected="false" tabindex="-1">Understand</button>
@@ -63,20 +94,33 @@
       <p id="explore-label" class="muted"></p>
       <div id="explore-message" class="message" hidden></div>
       <div id="explore-content">
+        <div class="finding" aria-live="polite">
+          <p class="finding-kicker">What this shows</p>
+          <p id="explore-finding" class="finding-text"></p>
+          <p id="explore-meaning" class="finding-meaning"></p>
+        </div>
         <div id="explore-tiles" class="tiles"></div>
-        <h3>Status by year</h3>
-        <div id="explore-years" class="table-wrap"></div>
+        <div class="table-band">
+          <h3>Status by year</h3>
+          <p class="help">Each row is one year. The verdict comes from the 95% interval: <em>met</em> or <em>not met</em> only when the whole interval is on one side of the target, otherwise <em>inconclusive</em>. "Not yet measurable" hires joined too recently to finish their window.</p>
+          <div id="explore-years" class="table-wrap"></div>
+        </div>
         <figure class="chart-card">
           <figcaption id="trend-caption">Trend</figcaption>
+          <p class="help">The line is the rate for each period, the shaded band its 95% interval and the dashed line the target. Small periods have wide bands, so this is a trend only; verdicts are given per year.</p>
           <div class="chart-box"><canvas id="trend-chart" role="img" aria-label="Trend chart"></canvas></div>
           <details><summary>Show the numbers as a table</summary><div id="trend-table" class="table-wrap"></div></details>
         </figure>
         <figure class="chart-card" id="exit-card">
           <figcaption>Why hires were not retained (exit type, mature hires in the selected years)</figcaption>
+          <p class="help">How the hires who left inside their window left. Voluntary exits are the ones retention work can influence most.</p>
           <div class="chart-box short"><canvas id="exit-chart" role="img" aria-label="Exit type bar chart"></canvas></div>
           <details><summary>Show the numbers as a table</summary><div id="exit-table" class="table-wrap"></div></details>
         </figure>
-        <ul id="explore-notes" class="notes"></ul>
+        <div class="notes-band">
+          <p class="notes-title">How these numbers are made</p>
+          <ul id="explore-notes" class="notes"></ul>
+        </div>
       </div>
     </section>
 
@@ -84,7 +128,13 @@
     <section id="panel-understand" role="tabpanel" aria-labelledby="tab-understand" class="panel" hidden>
       <h2>Understand: objective status and external signals</h2>
       <div id="understand-message" class="message" hidden></div>
+      <div class="finding" aria-live="polite">
+        <p class="finding-kicker">What this shows</p>
+        <p id="understand-finding" class="finding-text"></p>
+        <p id="understand-meaning" class="finding-meaning"></p>
+      </div>
       <h3>All three objectives for <span id="understand-country"></span></h3>
+      <p class="help">The whole 2021–2025 result for each objective (turnover: the latest 12 months), with its verdict.</p>
       <div id="understand-tiles" class="tiles"></div>
       <div class="section-controls">
         <div class="field">
@@ -94,19 +144,24 @@
       </div>
       <figure class="chart-card">
         <figcaption id="u-rate-caption">Objective trend</figcaption>
+        <p class="help">The objective chosen in the filter bar, over time, with its 95% interval and target.</p>
         <div class="chart-box"><canvas id="u-rate-chart" role="img" aria-label="Objective trend chart"></canvas></div>
         <details><summary>Show the numbers as a table</summary><div id="u-rate-table" class="table-wrap"></div></details>
       </figure>
       <figure class="chart-card">
         <figcaption id="u-indicator-caption">External signal</figcaption>
+        <p class="help">The official statistic for the same years, one line per country with a fixed colour. Compare the shapes by eye; the Challenge tab tests whether they really move together.</p>
         <div class="chart-box"><canvas id="u-indicator-chart" role="img" aria-label="External signal chart"></canvas></div>
         <details><summary>Show the numbers as a table</summary><div id="u-indicator-table" class="table-wrap"></div></details>
       </figure>
+      <div class="notes-band">
+      <p class="notes-title">Reading these two charts</p>
       <ul class="notes">
         <li>Two separate charts on the same years, never one chart with two y-axes.</li>
         <li>Each signal is drawn at its own frequency. Annual GDP is one value per year (drawn as steps), never shown as new monthly or quarterly values.</li>
         <li>This view shows values by their own period. The association tests (Challenge) use only values already published on each cohort's as-of date.</li>
       </ul>
+      </div>
     </section>
 
     <!-- CHALLENGE: relationships with n, uncertainty and caveats -->
@@ -114,8 +169,16 @@
       <h2>Challenge: do external signals move with retention?</h2>
       <p id="challenge-label" class="analysis-label"></p>
       <div id="challenge-message" class="message" hidden></div>
-      <h3>All tests for this objective</h3>
-      <div id="challenge-results" class="table-wrap"></div>
+      <div class="finding" aria-live="polite">
+        <p class="finding-kicker">What this shows</p>
+        <p id="challenge-finding" class="finding-text"></p>
+        <p id="challenge-meaning" class="finding-meaning"></p>
+      </div>
+      <div class="table-band">
+        <h3>All tests for this objective</h3>
+        <p class="help"><strong>rho</strong> runs from −1 to +1: 0 means no pattern, closer to ±1 means the two move together. The bar shows rho (dot) and its bootstrap interval (band); a band that crosses 0 means no clear direction. <strong>Holm p</strong> corrects for running 4 tests; below 0.05 would count as a clear association.</p>
+        <div id="challenge-results" class="table-wrap"></div>
+      </div>
       <div class="section-controls">
         <div class="field">
           <label for="c-indicator">Signal</label>
@@ -139,31 +202,49 @@
       </div>
       <figure class="chart-card">
         <figcaption id="scatter-caption">Relationship</figcaption>
+        <p class="help">Each dot is one country and period: across is the signal, up is the retention rate. In the within-country view both are shown as the distance from that country's own average, so differences between countries do not create a false pattern.</p>
         <div class="chart-box tall"><canvas id="scatter-chart" role="img" aria-label="Scatter chart"></canvas></div>
         <details><summary>Show the points as a table</summary><div id="scatter-table" class="table-wrap"></div></details>
       </figure>
       <div id="challenge-result" class="result-box" aria-live="polite"></div>
+      <div class="notes-band">
+      <p class="notes-title">How to read these results</p>
       <ul class="notes">
         <li>Correlation does not imply causation: these results are associative, not causal.</li>
         <li>A result without a clear association does not show that no relationship exists; small samples and repeated observations limit inference.</li>
         <li>Holm correction is applied over the 4 formal within-country tests of each objective.</li>
       </ul>
+      </div>
     </section>
 
     <!-- TRUST: freshness, coverage, exclusions, attribution, methodology -->
     <section id="panel-trust" role="tabpanel" aria-labelledby="tab-trust" class="panel" hidden>
       <h2>Trust: where the numbers come from</h2>
       <div id="trust-message" class="message" hidden></div>
-      <h3>Sources and freshness</h3>
-      <div id="trust-sources" class="table-wrap"></div>
+      <div class="finding" aria-live="polite">
+        <p class="finding-kicker">What this shows</p>
+        <p id="trust-finding" class="finding-text"></p>
+        <p id="trust-meaning" class="finding-meaning"></p>
+      </div>
+      <div class="table-band">
+        <h3>Sources and freshness</h3>
+        <p class="help">Where each input comes from, how recent it is and its licence. "Replayed" means the run used the saved snapshot, so results can be reproduced exactly.</p>
+        <div id="trust-sources" class="table-wrap"></div>
+      </div>
       <h3>Data quality and exclusions</h3>
+      <p class="help">Every HR row is accounted for: used, quarantined (kept aside, shown in the sensitivity check) or excluded (unusable). Each flag below names the decision that set its rule.</p>
       <p id="trust-reconciliation"></p>
       <div id="trust-status" class="tiles"></div>
-      <div id="trust-flags" class="table-wrap"></div>
+      <div class="table-band">
+        <div id="trust-flags" class="table-wrap"></div>
+      </div>
       <p id="trust-principle" class="principle"></p>
       <h3>Sensitivity: does the data treatment change the verdict?</h3>
+      <p class="help">The same objective recomputed with the uncertain records treated differently. If the verdict does not change, the conclusion does not depend on those records.</p>
       <p id="trust-sensitivity-summary"></p>
-      <div id="trust-sensitivity" class="table-wrap"></div>
+      <div class="table-band">
+        <div id="trust-sensitivity" class="table-wrap"></div>
+      </div>
       <details>
         <summary>Indicator coverage per country</summary>
         <div id="trust-coverage" class="table-wrap"></div>

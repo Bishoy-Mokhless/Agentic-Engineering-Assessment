@@ -25,7 +25,7 @@ const state = {
   filters: null, // the /api/filters response
   objective: "NEW_HIRE_6M",
   country: "ALL",
-  segment: "",
+  segments: {}, // D-86: {dimension: value}, combined with AND
   yearFrom: null,
   yearTo: null,
   variant: "primary",
@@ -111,8 +111,131 @@ function statusBadge(status) {
 
 function targetText(meta) {
   const sign = meta.direction === "at_least" ? "≥" : "≤";
+  return "Target " + sign + " " + targetPct(meta);
+}
+
+/** The target as a percentage: 0.86 -> "86%", 0.075 -> "7.5%". */
+function targetPct(meta) {
   const digits = meta.objective_id === TURNOVER ? 1 : 0;
-  return "Target " + sign + " " + pct(meta.target, digits);
+  return pct(meta.target, digits);
+}
+
+/** 1804 -> "1,804". */
+function count(value) {
+  return Number(value).toLocaleString("en-US");
+}
+
+/** "New-hire six-month retention" -> "new-hire six-month retention" (for use inside a sentence). */
+function lowerFirst(text) {
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Findings (D-84, D-85): each tab opens with a plain-language sentence built from the data on screen,
+// so a reviewer, an HR reader or the presenter can read the answer before the evidence.
+// Wording follows D-63: verdicts come from the 95% interval; associations are never causal.
+// ---------------------------------------------------------------------------------------------
+
+/** Write the finding sentence (+ optional status pill) and the "What this means" line of a tab. */
+function setFinding(tab, sentence, status, meaning) {
+  const finding = byId(tab + "-finding");
+  clear(finding);
+  finding.appendChild(document.createTextNode(sentence));
+  if (status !== undefined) {
+    finding.appendChild(statusBadge(status));
+  }
+  const meaningBox = byId(tab + "-meaning");
+  clear(meaningBox);
+  if (meaning) {
+    meaningBox.appendChild(el("strong", "What this means: "));
+    meaningBox.appendChild(document.createTextNode(meaning));
+  }
+}
+
+function clearFinding(tab) {
+  clear(byId(tab + "-finding"));
+  clear(byId(tab + "-meaning"));
+}
+
+/**
+ * The verdict in words, from the interval and the target (D-75).
+ * Example: not_met, at_least 90% -> "The whole 95% range (72.9%–82.7%) is below the 90% target, so the target is not met."
+ */
+function verdictSentence(row, meta, digits) {
+  const range = "(" + pct(row.ci_low, digits) + "–" + pct(row.ci_high, digits) + ")";
+  const target = targetPct(meta);
+  const goodSide = meta.direction === "at_least" ? "above" : "below";
+  const badSide = meta.direction === "at_least" ? "below" : "above";
+  if (row.status === "met") {
+    return "The whole 95% range " + range + " is " + goodSide + " the " + target + " target, so the target is met.";
+  }
+  if (row.status === "not_met") {
+    return "The whole 95% range " + range + " is " + badSide + " the " + target + " target, so the target is not met.";
+  }
+  if (row.status === "inconclusive") {
+    return "The 95% range " + range + " includes the " + target + " target, so the data cannot yet say whether it is met.";
+  }
+  return "No verdict is given for this slice.";
+}
+
+/**
+ * Summarise the status of each year in one phrase.
+ * Example: all inconclusive 2021-2025 -> "Inconclusive in every year from 2021 to 2025."
+ */
+function yearPattern(rows, periodKey) {
+  const words = { met: "met", not_met: "not met", inconclusive: "inconclusive" };
+  // 1. Keep only the years that have a verdict.
+  const judged = [];
+  for (const row of rows) {
+    if (row.status) {
+      judged.push(row);
+    }
+  }
+  if (judged.length === 0) {
+    return "";
+  }
+  const first = String(judged[0][periodKey]).slice(0, 4);
+  const last = String(judged[judged.length - 1][periodKey]).slice(0, 4);
+
+  // 2. Group the years by status.
+  const groups = {};
+  for (const row of judged) {
+    if (!groups[row.status]) {
+      groups[row.status] = [];
+    }
+    groups[row.status].push(String(row[periodKey]).slice(0, 4));
+  }
+
+  // 3. One status for every year, or a list per status.
+  const statuses = Object.keys(groups);
+  if (statuses.length === 1) {
+    const word = words[statuses[0]];
+    if (judged.length === 1) {
+      return word.charAt(0).toUpperCase() + word.slice(1) + " in " + first + ".";
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1) + " in every year from " + first + " to " + last + ".";
+  }
+  const parts = [];
+  for (const status of ["met", "not_met", "inconclusive"]) {
+    if (groups[status]) {
+      parts.push(words[status] + " in " + groups[status].join(", "));
+    }
+  }
+  return "By year: " + parts.join("; ") + ".";
+}
+
+/** " in Romania" / "" for the whole company. */
+function placeText(country) {
+  return country === "ALL" ? "" : " in " + countryName(country);
+}
+
+/** " (Fixed Term employees)" / "". */
+function segmentText() {
+  const values = segmentValues();
+  if (values.length === 0) {
+    return "";
+  }
+  return " (segment: " + values.join(", ") + ")";
 }
 
 /**
@@ -173,7 +296,11 @@ async function fetchJson(path, params) {
   const query = new URLSearchParams();
   if (params) {
     for (const [key, value] of Object.entries(params)) {
-      if (value !== null && value !== undefined && value !== "") {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          query.append(key, item); // e.g. segment=a&segment=b (D-86)
+        }
+      } else if (value !== null && value !== undefined && value !== "") {
         query.append(key, value);
       }
     }
@@ -354,7 +481,7 @@ function drawTrend(canvasId, points, meta, yTitle) {
       datasets: [
         { label: "_ci_high", data: highData, borderWidth: 0, pointRadius: 0, fill: false },
         { label: "95% interval", data: lowData, borderWidth: 0, pointRadius: 0, fill: "-1", backgroundColor: band },
-        { label: meta.objective_id, data: rateData, borderColor: accent, backgroundColor: accent, borderWidth: 2, pointRadius: 3 },
+        { label: meta.objective_id === TURNOVER ? "Turnover rate" : "Retention rate", data: rateData, borderColor: accent, backgroundColor: accent, borderWidth: 2, pointRadius: 3 },
         {
           label: "Target",
           data: [{ x: range.min, y: meta.target }, { x: range.max, y: meta.target }],
@@ -366,6 +493,165 @@ function drawTrend(canvasId, points, meta, yTitle) {
       ],
     },
     options: options,
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Workforce segment (D-86): one button opens a small panel with one list per field.
+// The chosen values combine with AND and are sent as repeated `segment=dimension:value` parameters.
+// ---------------------------------------------------------------------------------------------
+
+const SEGMENT_FIELDS = ["employment_type", "career_level", "business_unit", "job_family"];
+
+/** state.segments as API values. Example: {employment_type: "Fixed Term"} -> ["employment_type:Fixed Term"] */
+function segmentList() {
+  const list = [];
+  for (const dimension of SEGMENT_FIELDS) {
+    if (state.segments[dimension]) {
+      list.push(dimension + ":" + state.segments[dimension]);
+    }
+  }
+  return list;
+}
+
+/** Just the chosen values. Example: ["Fixed Term", "Manager"] */
+function segmentValues() {
+  const values = [];
+  for (const dimension of SEGMENT_FIELDS) {
+    if (state.segments[dimension]) {
+      values.push(state.segments[dimension]);
+    }
+  }
+  return values;
+}
+
+/** "employment_type = Fixed Term and career_level = Manager" ("" when nothing is chosen). */
+function segmentDescription() {
+  const parts = [];
+  for (const item of segmentList()) {
+    parts.push(item.replace(":", " = "));
+  }
+  return parts.join(" and ");
+}
+
+/** Fill one panel list with "Any" + values, keeping the current choice when it is still valid. */
+function fillSegmentSelect(dimension, values, selected) {
+  const options = [{ value: "", label: "Any" }];
+  for (const value of values) {
+    options.push({ value: value, label: value });
+  }
+  const keep = values.indexOf(selected) >= 0 ? selected : "";
+  fillSelect(byId("seg-" + dimension), options, keep);
+}
+
+/** Job families follow the chosen business unit (each family belongs to one unit). */
+function fillJobFamilies(selected) {
+  const unit = byId("seg-business_unit").value;
+  const families = unit ? state.filters.job_families_by_unit[unit] || [] : state.filters.segments.job_family;
+  fillSegmentSelect("job_family", families, selected);
+}
+
+function openSegmentPanel() {
+  // 1. Show the current choices in the lists.
+  for (const dimension of SEGMENT_FIELDS) {
+    if (dimension !== "job_family") {
+      fillSegmentSelect(dimension, state.filters.segments[dimension], state.segments[dimension] || "");
+    }
+  }
+  fillJobFamilies(state.segments.job_family || "");
+  // 2. Open the panel and move focus into it.
+  byId("segment-panel").hidden = false;
+  byId("f-segment").setAttribute("aria-expanded", "true");
+  byId("seg-employment_type").focus();
+}
+
+function closeSegmentPanel(returnFocus) {
+  byId("segment-panel").hidden = true;
+  byId("f-segment").setAttribute("aria-expanded", "false");
+  if (returnFocus) {
+    byId("f-segment").focus();
+  }
+}
+
+/** Show the choice on the button and as removable chips under the filter row. */
+function updateSegmentUi() {
+  const values = segmentValues();
+  byId("f-segment").textContent = values.length ? values.join(", ") : "All employees";
+  const chips = byId("segment-chips");
+  clear(chips);
+  for (const dimension of SEGMENT_FIELDS) {
+    const value = state.segments[dimension];
+    if (!value) {
+      continue;
+    }
+    const chip = el("button");
+    chip.type = "button";
+    chip.setAttribute("data-dimension", dimension);
+    chip.setAttribute("aria-label", "Remove filter " + value);
+    chip.appendChild(el("span", value));
+    chip.appendChild(el("span", "✕", "chip-x"));
+    chip.addEventListener("click", function () {
+      delete state.segments[dimension];
+      updateSegmentUi();
+      loadCurrentTab();
+    });
+    chips.appendChild(chip);
+  }
+  const active = values.length > 0;
+  byId("segment-bar").hidden = !active;
+  chips.hidden = !active;
+}
+
+/** Apply the panel's lists to the filters and reload the visible tab. */
+function applySegmentPanel() {
+  state.segments = {};
+  for (const dimension of SEGMENT_FIELDS) {
+    const value = byId("seg-" + dimension).value;
+    if (value) {
+      state.segments[dimension] = value;
+    }
+  }
+  closeSegmentPanel(true);
+  updateSegmentUi();
+  loadCurrentTab();
+}
+
+function setupSegmentPanel() {
+  const button = byId("f-segment");
+  const panel = byId("segment-panel");
+  button.addEventListener("click", function () {
+    if (panel.hidden) {
+      openSegmentPanel();
+    } else {
+      closeSegmentPanel(false);
+    }
+  });
+  byId("seg-business_unit").addEventListener("change", function () {
+    fillJobFamilies(byId("seg-job_family").value);
+  });
+  byId("seg-apply").addEventListener("click", applySegmentPanel);
+  byId("seg-clear").addEventListener("click", function () {
+    for (const dimension of SEGMENT_FIELDS) {
+      byId("seg-" + dimension).value = "";
+    }
+    applySegmentPanel();
+  });
+  byId("segment-clear-all").addEventListener("click", function () {
+    state.segments = {};
+    updateSegmentUi();
+    loadCurrentTab();
+  });
+  // Escape closes without applying; a click outside closes too.
+  panel.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      closeSegmentPanel(true);
+      event.preventDefault();
+    }
+  });
+  document.addEventListener("click", function (event) {
+    if (!panel.hidden && !panel.contains(event.target) && event.target !== button) {
+      closeSegmentPanel(false);
+    }
   });
 }
 
@@ -400,28 +686,8 @@ function fillFilters(filters) {
   }
   fillSelect(byId("f-country"), countries, state.country);
 
-  // Segment: one list, grouped by dimension; value "dimension:value" (D-77).
-  const segment = byId("f-segment");
-  clear(segment);
-  const all = el("option", "All employees");
-  all.value = "";
-  segment.appendChild(all);
-  const dimensionLabels = {
-    employment_type: "Employment type",
-    career_level: "Career level",
-    business_unit: "Business unit",
-    job_family: "Job family",
-  };
-  for (const [dimension, values] of Object.entries(filters.segments)) {
-    const group = document.createElement("optgroup");
-    group.label = dimensionLabels[dimension] || dimension;
-    for (const value of values) {
-      const option = el("option", value);
-      option.value = dimension + ":" + value;
-      group.appendChild(option);
-    }
-    segment.appendChild(group);
-  }
+  // Segment: the panel's lists are filled when it opens (D-86).
+  updateSegmentUi();
 
   const years = [];
   for (const year of filters.years) {
@@ -470,8 +736,9 @@ function fillVariants() {
   const segment = byId("f-segment");
   segment.disabled = state.objective === TURNOVER;
   if (segment.disabled) {
-    segment.value = "";
-    state.segment = "";
+    state.segments = {};
+    closeSegmentPanel(false);
+    updateSegmentUi();
   }
 }
 
@@ -479,7 +746,6 @@ function readFilters() {
   const previousObjective = state.objective;
   state.objective = byId("f-objective").value;
   state.country = byId("f-country").value;
-  state.segment = byId("f-segment").value;
   state.yearFrom = Number(byId("f-from").value);
   state.yearTo = Number(byId("f-to").value);
   state.variant = byId("f-variant").value;
@@ -494,7 +760,7 @@ function commonParams() {
     objective: state.objective,
     country: state.country,
     variant: state.variant,
-    segment: state.segment,
+    segment: segmentList(),
     year_from: state.yearFrom,
     year_to: state.yearTo,
   };
@@ -546,6 +812,7 @@ async function loadCurrentTab() {
     await loaders[state.tab](myLoad);
   } catch (error) {
     if (myLoad === loadCounter) {
+      clearFinding(state.tab);
       showMessage(state.tab, "error", errorText(error));
       if (state.tab === "explore") {
         byId("explore-content").hidden = true;
@@ -588,9 +855,9 @@ async function loadHealth() {
 
 async function loadExplore(myLoad) {
   const meta = objectiveMeta(state.objective);
-  byId("explore-title").textContent = meta.name + " · " + countryName(state.country);
+  byId("explore-title").textContent = meta.name + ", " + countryName(state.country);
   const label = byId("explore-label");
-  label.textContent = targetText(meta) + " · " + meta.label + (state.segment ? " · segment " + state.segment.replace(":", " = ") : "");
+  label.textContent = targetText(meta) + ". " + meta.label + "." + (segmentList().length ? " Segment " + segmentDescription() + "." : "");
 
   if (state.objective === TURNOVER) {
     await exploreTurnover(meta, myLoad);
@@ -628,7 +895,8 @@ async function exploreCohorts(meta, myLoad) {
   const tiles = byId("explore-tiles");
   clear(tiles);
   const whole = period[0];
-  tiles.appendChild(rateTile("2021–2025 (whole period)", whole, meta));
+  const periodText = String(whole.period).replace("-", "–");
+  tiles.appendChild(rateTile(periodText + " (whole period)", whole, meta));
   const measuredYears = years.filter((row) => row.n > 0);
   if (measuredYears.length > 0) {
     const last = measuredYears[measuredYears.length - 1];
@@ -680,7 +948,39 @@ async function exploreCohorts(meta, myLoad) {
     { key: "exits", label: "Exits", numeric: true },
   ], exitRows);
 
+  // 5. The finding in words (D-84).
+  const sentence = meta.name + placeText(state.country) + segmentText() + " was " + pct(whole.rate, 1) +
+    " for hires in " + periodText + " (" + count(whole.retained) + " of " + count(whole.n) + " hires stayed). " +
+    verdictSentence(whole, meta, 1) +
+    (whole.small_sample ? " The sample is small (fewer than 10 hires), so read it with care." : "");
+  setFinding("explore", sentence, whole.status, cohortMeaning(years, whole, totals, meta));
+
   fillNotes(answers[0].notes.concat(["Values: " + answers[0].computed + "."]));
+}
+
+/** "What this means" for a hire objective: the year pattern, the main exit reason, the hires not yet measurable. */
+function cohortMeaning(years, whole, totals, meta) {
+  const parts = [];
+  const pattern = yearPattern(years.filter((row) => row.n > 0), "period");
+  if (pattern) {
+    parts.push(pattern);
+  }
+  const leavers = whole.n - whole.retained;
+  if (leavers > 0) {
+    let topType = null;
+    for (const type of Object.keys(totals)) {
+      if (topType === null || totals[type] > totals[topType]) {
+        topType = type;
+      }
+    }
+    parts.push("Of the " + count(leavers) + " hires who left within the window, " + count(totals[topType]) +
+      " were " + lowerFirst(topType) + " exits.");
+  }
+  if (whole.immature_hires > 0) {
+    const months = meta.objective_id === "NEW_HIRE_6M" ? "6" : "12";
+    parts.push(count(whole.immature_hires) + " more hires joined too recently to complete " + months + " months, so they are not counted yet.");
+  }
+  return parts.join(" ");
 }
 
 function rateTile(title, row, meta) {
@@ -691,8 +991,9 @@ function rateTile(title, row, meta) {
   tile.appendChild(el("div", pct(row.rate, digits), "tile-value"));
   tile.appendChild(statusBadge(row.status));
   const n = row.n !== undefined ? row.n : row.avg_headcount;
-  let detail = "95% CI " + pct(row.ci_low, digits) + "–" + pct(row.ci_high, digits) + " · n = " + num(n, 0) + " · " + targetText(meta);
+  const detail = "95% CI " + pct(row.ci_low, digits) + "–" + pct(row.ci_high, digits) + ", n = " + count(Math.round(n));
   tile.appendChild(el("div", detail, "tile-detail"));
+  tile.appendChild(el("div", targetText(meta), "tile-detail"));
   if (row.small_sample) {
     tile.appendChild(el("div", "⚠ Small sample (fewer than 10): read with care", "small-sample"));
   }
@@ -769,7 +1070,37 @@ async function exploreTurnover(meta, myLoad) {
   byId("trend-caption").textContent = "Trailing-12-month regretted turnover by month-end, with 95% interval (verdicts on December values only)";
   drawTrend("trend-chart", points, meta, "Regretted turnover");
   buildTable(byId("trend-table"), turnoverColumns(), rows);
+
+  // The finding in words (D-84), from the latest December value.
+  if (decembers.length > 0) {
+    const last = decembers[decembers.length - 1];
+    const sentence = "Regretted turnover" + placeText(state.country) + " in the 12 months to " + last.month_end + " was " +
+      pct(last.rate, 2) + " (" + count(last.regretted_exits) + " regretted exits, average headcount " +
+      count(Math.round(last.avg_headcount)) + "). " + verdictSentence(last, meta, 2);
+    setFinding("explore", sentence, last.status, turnoverMeaning(decembers));
+  } else {
+    setFinding("explore", "No December value in the selected years, so no verdict is given. The chart shows the monthly trend.");
+  }
   fillNotes(answer.notes);
+}
+
+/** "What this means" for turnover: years meeting the target, and the change in the latest year. */
+function turnoverMeaning(decembers) {
+  let met = 0;
+  for (const row of decembers) {
+    if (row.status === "met") {
+      met += 1;
+    }
+  }
+  const parts = ["The target was met in " + met + " of " + decembers.length + " years (December values)."];
+  if (decembers.length >= 2) {
+    const last = decembers[decembers.length - 1];
+    const before = decembers[decembers.length - 2];
+    const direction = last.rate > before.rate ? "rose" : last.rate < before.rate ? "fell" : "stayed";
+    parts.push("It " + direction + " from " + pct(before.rate, 2) + " in " + before.month_end.slice(0, 4) +
+      " to " + pct(last.rate, 2) + " in " + last.month_end.slice(0, 4) + ".");
+  }
+  return parts.join(" ");
 }
 
 function fillNotes(notes) {
@@ -788,7 +1119,7 @@ async function loadUnderstand(myLoad) {
   const country = state.country;
   byId("understand-country").textContent = countryName(country);
   const indicator = byId("u-indicator").value;
-  const segment = state.segment;
+  const segment = segmentList();
 
   // 1. Status of all three objectives for the selected country (whole period / latest December).
   const hireParams = { country: country, variant: state.variant === "unknown_as_regretted" ? "primary" : state.variant, segment: segment, grain: "period" };
@@ -819,8 +1150,8 @@ async function loadUnderstand(myLoad) {
     tiles.appendChild(rateTile("Regretted turnover, 12 months to " + decembers[decembers.length - 1].month_end, decembers[decembers.length - 1], objectiveMeta(TURNOVER)));
     state.objective = savedObjective;
   }
-  if (segment) {
-    tiles.appendChild(el("p", "Segment " + segment.replace(":", " = ") + " applies to the hire objectives only (turnover covers all employees).", "muted"));
+  if (segment.length > 0) {
+    tiles.appendChild(el("p", "Segment " + segmentDescription() + " applies to the hire objectives only (turnover covers all employees).", "muted"));
   }
 
   // 2. The selected objective's trend.
@@ -828,12 +1159,12 @@ async function loadUnderstand(myLoad) {
   if (state.objective === TURNOVER) {
     const turnover = await fetchJson("/api/retention/turnover", { country: country, variant: state.variant, year_from: state.yearFrom, year_to: state.yearTo });
     const points = turnover.rows.map((row) => Object.assign({ period: row.month_end, n: row.avg_headcount }, row));
-    byId("u-rate-caption").textContent = meta.name + " · " + countryName(country) + " (monthly, trailing 12 months)";
+    byId("u-rate-caption").textContent = meta.name + ", " + countryName(country) + " (monthly, trailing 12 months)";
     drawTrend("u-rate-chart", points, meta, "Regretted turnover");
     buildTable(byId("u-rate-table"), turnoverColumns(), turnover.rows);
   } else {
     const cohorts = await fetchJson("/api/retention/cohorts", Object.assign({}, commonParams(), { grain: "quarter" }));
-    byId("u-rate-caption").textContent = meta.name + " · " + countryName(country) + " (quarterly cohorts)";
+    byId("u-rate-caption").textContent = meta.name + ", " + countryName(country) + " (quarterly cohorts)";
     drawTrend("u-rate-chart", cohorts.rows, meta, "Retained");
     buildTable(byId("u-rate-table"), cohortColumns(), cohorts.rows);
   }
@@ -843,11 +1174,106 @@ async function loadUnderstand(myLoad) {
 
   // 3. The external signal, drawn at its own frequency; one line per country with a fixed colour.
   drawIndicator(answers[3].rows, indicator, country);
+
+  // 4. The finding in words (D-84): the three verdicts, then how the signal moved.
+  const lastDecember = decembers.length > 0 ? decembers[decembers.length - 1] : null;
+  setFinding("understand", understandSentence(newHire, senior, lastDecember, country), undefined,
+    signalMovement(answers[3].rows, indicator, country));
+}
+
+/**
+ * Example: "Across 2021–2025, new-hire retention is inconclusive, senior-hire retention is not met,
+ * and regretted turnover is met (12 months to 2025-12-31)."
+ */
+function understandSentence(newHire, senior, lastDecember, country) {
+  const words = { met: "met", not_met: "not met", inconclusive: "inconclusive" };
+  const parts = [];
+  if (newHire && newHire.n > 0) {
+    parts.push("new-hire retention is " + (words[newHire.status] || "without a verdict"));
+  }
+  if (senior && senior.n > 0) {
+    parts.push("senior-hire retention is " + (words[senior.status] || "without a verdict"));
+  }
+  if (lastDecember) {
+    parts.push("regretted turnover is " + (words[lastDecember.status] || "without a verdict") +
+      " in the latest 12 months");
+  }
+  if (parts.length === 0) {
+    return "No objective can be measured for " + countryName(country) + " with these filters.";
+  }
+  let list = parts[0];
+  if (parts.length === 2) {
+    list = parts[0] + " and " + parts[1];
+  } else if (parts.length === 3) {
+    list = parts[0] + ", " + parts[1] + ", and " + parts[2];
+  }
+  return "Across 2021–2025" + placeText(country) + ", " + list + ".";
+}
+
+/**
+ * How the selected signal moved between the first and last period shown.
+ * Example: "Unemployment rate fell in 5 of 6 countries between 2021-01 and 2025-12; it rose in Romania."
+ */
+function signalMovement(rows, indicator, country) {
+  const names = {
+    unemployment: "Unemployment rate",
+    inflation: "Inflation",
+    job_vacancy: "The job vacancy rate",
+    gdp_growth: "GDP growth",
+  };
+  const name = names[indicator] || indicatorLabel(indicator);
+  const closing = " Moving at the same time does not mean one drives the other; tab 3 (Challenge) tests the relationship.";
+  if (rows.length === 0) {
+    return "";
+  }
+
+  // 1. First and last value per country (rows are sorted by country, then period).
+  const firstRow = {};
+  const lastRow = {};
+  for (const row of rows) {
+    if (!firstRow[row.country_code]) {
+      firstRow[row.country_code] = row;
+    }
+    lastRow[row.country_code] = row;
+  }
+  const codes = COUNTRIES.filter((code) => firstRow[code]);
+  const fromPeriod = firstRow[codes[0]].period;
+  const toPeriod = lastRow[codes[0]].period;
+
+  // 2. One country: say the two values.
+  if (codes.length === 1) {
+    const code = codes[0];
+    return name + " in " + countryName(code) + " went from " + num(firstRow[code].value, 1) + " to " +
+      num(lastRow[code].value, 1) + " (" + firstRow[code].unit + ") between " + fromPeriod + " and " + toPeriod + "." + closing;
+  }
+
+  // 3. Several countries: count how many fell, and name the others.
+  const rose = [];
+  const flat = [];
+  let fell = 0;
+  for (const code of codes) {
+    const change = lastRow[code].value - firstRow[code].value;
+    if (change < 0) {
+      fell += 1;
+    } else if (change > 0) {
+      rose.push(countryName(code));
+    } else {
+      flat.push(countryName(code));
+    }
+  }
+  let text = name + " fell in " + fell + " of " + codes.length + " countries between " + fromPeriod + " and " + toPeriod;
+  if (rose.length > 0) {
+    text += "; it rose in " + rose.join(", ");
+  }
+  if (flat.length > 0) {
+    text += "; it was unchanged in " + flat.join(", ");
+  }
+  return text + "." + closing;
 }
 
 function drawIndicator(rows, indicator, country) {
   const caption = byId("u-indicator-caption");
-  caption.textContent = indicatorLabel(indicator) + (country === "ALL" ? " · all six countries" : " · " + countryName(country));
+  caption.textContent = indicatorLabel(indicator) + (country === "ALL" ? ", all six countries" : ", " + countryName(country));
   if (rows.length === 0) {
     showMessage("understand", "empty", "No values for this signal in the selected years.");
     return;
@@ -932,6 +1358,65 @@ function viewLabel(view) {
   return labels[view] || view;
 }
 
+/** Signal name with the sample size underneath. */
+function signalCell(row) {
+  const cell = el("span", indicatorLabel(row.indicator));
+  cell.appendChild(el("span", "n = " + row.n_rows + " rows, " + row.n_countries + " countries", "cell-sub"));
+  return cell;
+}
+
+/** A small interval bar on a −1 … +1 scale: the band is the bootstrap interval, the dot is rho. */
+function ciBar(row) {
+  const bar = el("span", null, "ci-bar");
+  bar.setAttribute("role", "img");
+  bar.setAttribute("aria-label", "rho " + num(row.rho, 2) + ", interval " + num(row.ci_low, 2) + " to " + num(row.ci_high, 2));
+  bar.title = "rho " + num(row.rho, 2) + " (" + num(row.ci_low, 2) + " to " + num(row.ci_high, 2) + ")";
+  bar.appendChild(el("span", null, "zero"));
+  const range = el("span", null, "range");
+  range.style.left = ((row.ci_low + 1) * 50) + "%";
+  range.style.width = ((row.ci_high - row.ci_low) * 50) + "%";
+  bar.appendChild(range);
+  const point = el("span", null, "point");
+  point.style.left = ((row.rho + 1) * 50) + "%";
+  bar.appendChild(point);
+  const wrapper = el("span");
+  wrapper.appendChild(bar);
+  wrapper.appendChild(el("span", " " + num(row.ci_low, 2) + " to " + num(row.ci_high, 2), "cell-sub-inline"));
+  return wrapper;
+}
+
+/** Example: "None of the 4 formal within-country tests shows a clear association between an external signal and new-hire six-month retention." */
+function challengeSentence(formal, alpha, objective) {
+  const name = lowerFirst(objectiveMeta(objective).name);
+  const clearRows = formal.filter((row) => row.p_holm !== null && row.p_holm < alpha);
+  if (formal.length === 0) {
+    return "No formal test exists for " + name + ".";
+  }
+  if (clearRows.length === 0) {
+    return "None of the " + formal.length + " formal within-country tests shows a clear association between an external signal and " + name + ".";
+  }
+  const signals = clearRows.map((row) => indicatorLabel(row.indicator));
+  return clearRows.length + " of " + formal.length + " formal within-country tests show an association with " + name +
+    ": " + signals.join(", ") + ".";
+}
+
+/** The strongest formal result and the careful reading (D-63). */
+function challengeMeaning(formal) {
+  if (formal.length === 0) {
+    return "";
+  }
+  let strongest = formal[0];
+  for (const row of formal) {
+    if (row.p_value < strongest.p_value) {
+      strongest = row;
+    }
+  }
+  return "The strongest was " + indicatorLabel(strongest.indicator) + " (rho " + num(strongest.rho, 2) +
+    ", raw p " + num(strongest.p_value, 2) + ", Holm-adjusted p " + num(strongest.p_holm, 2) + "). " +
+    "These results are associative, not causal, and a result without a clear association does not show that no relationship exists: " +
+    "small samples and repeated observations limit inference.";
+}
+
 async function loadChallenge(myLoad) {
   const objective = state.objective;
   const indicator = byId("c-indicator").value;
@@ -951,17 +1436,37 @@ async function loadChallenge(myLoad) {
   const points = answers[1].points;
   byId("challenge-label").textContent = results.length ? results[0].label : "";
 
-  // 1. All results: formal rows first and bold.
-  buildTable(byId("challenge-results"), [
-    { label: "Signal", format: (row) => indicatorLabel(row.indicator) },
+  // 1. The finding in words (D-84): how many formal tests show a clear association.
+  const alpha = answers[0].alpha;
+  const formal = results.filter((row) => row.is_formal);
+  const descriptive = results.filter((row) => !row.is_formal);
+  setFinding("challenge", challengeSentence(formal, alpha, objective), undefined, challengeMeaning(formal));
+
+  // 2. Formal tests on top with an interval bar; the descriptive views folded underneath.
+  const container = byId("challenge-results");
+  clear(container);
+  const formalBox = el("div");
+  container.appendChild(formalBox);
+  buildTable(formalBox, [
+    { label: "Signal", format: (row) => signalCell(row) },
+    { label: "rho", numeric: true, format: (row) => num(row.rho, 2) },
+    { label: "Bootstrap 95% (exploratory), scale −1 to +1", format: (row) => ciBar(row) },
+    { label: "p", numeric: true, format: (row) => num(row.p_value, 2) },
+    { label: "Holm p", numeric: true, format: (row) => num(row.p_holm, 2) },
+    { label: "Result", format: (row) => (row.p_holm < alpha ? "Association (not causal)" : "No clear association") },
+  ], formal, () => "formal");
+  const more = el("details");
+  more.appendChild(el("summary", "Show the " + descriptive.length + " descriptive views (pooled and time-adjusted, not formal tests)"));
+  const descriptiveBox = el("div", null, "table-wrap");
+  more.appendChild(descriptiveBox);
+  container.appendChild(more);
+  buildTable(descriptiveBox, [
+    { label: "Signal", format: (row) => signalCell(row) },
     { label: "View", format: (row) => viewLabel(row.view) },
     { label: "rho", numeric: true, format: (row) => num(row.rho, 2) },
-    { label: "Bootstrap 95% (exploratory)", numeric: true, format: (row) => num(row.ci_low, 2) + " to " + num(row.ci_high, 2) },
-    { key: "n_rows", label: "n (rows)", numeric: true },
+    { label: "Bootstrap 95% (exploratory)", format: (row) => ciBar(row) },
     { label: "p", numeric: true, format: (row) => num(row.p_value, 2) },
-    { label: "Holm p", numeric: true, format: (row) => (row.p_holm === null ? "not a formal test" : num(row.p_holm, 2)) },
-    { key: "result", label: "Result" },
-  ], results, (row) => (row.is_formal ? "formal" : ""));
+  ], descriptive);
 
   // 2. Scatter: emphasis on the selected country, others grey (no 6-colour scatter).
   const accent = cssVar("--accent");
@@ -983,10 +1488,10 @@ async function loadChallenge(myLoad) {
   const isPooled = view === "pooled";
   const xTitle = isPooled ? indicatorLabel(indicator) : indicatorLabel(indicator) + " (minus country average)";
   const yTitle = isPooled ? "Outcome rate" : "Outcome rate (minus country average)";
-  const setText = analysisSet === "descriptive" ? " · quarterly rows, descriptive only (not tested)" : "";
+  const setText = analysisSet === "descriptive" ? ", quarterly rows, descriptive only (not tested)" : "";
   const viewText = analysisSet === "descriptive" ? viewLabel(view).replace(" (formal)", "") : viewLabel(view);
   byId("scatter-caption").textContent = viewText + ": " + indicatorLabel(indicator) + " vs " + objective +
-    " · " + selected.concat(others).length + " rows" + setText;
+    ", " + selected.concat(others).length + " rows" + setText;
 
   const ink = cssVar("--text-2");
   const grid = cssVar("--grid");
@@ -1087,23 +1592,27 @@ async function loadTrust(myLoad) {
   const quality = answers[1];
   const sensitivity = answers[2];
 
-  // 1. Sources: status, freshness, licence, attribution.
-  buildTable(byId("trust-sources"), [
-    { key: "indicator", label: "Source" },
-    { label: "Provider / dataset", format: (row) => row.provider + " · " + row.dataset },
-    { label: "Status", format: (row) => statusText(row.status) },
-    { label: "Fetched", format: (row) => row.fetched_at || "delivered pack" },
-    { key: "latest_period", label: "Latest period" },
-    { label: "Coverage", format: (row) => (row.coverage_first_period ? row.coverage_first_period + " to " + row.coverage_last_period : "–") },
-    { label: "Frequency / lag", format: (row) => row.frequency + (row.publication_lag_months ? " / +" + row.publication_lag_months + " months" : "") },
-    { label: "Licence", format: (row) => licenceCell(row) },
-    { key: "note", label: "Note" },
-  ], sources);
-
-  // 2. Quality: reconciliation, statuses, flags.
+  // 1. The finding in words (D-84): reconciliation, what was set aside, sensitivity, sources.
   const hr = quality.report.hr;
   const rec = hr.reconciliation;
-  byId("trust-reconciliation").textContent = rec.rows_in_file + " rows in the HR file − " + rec.duplicate_rows_removed +
+  const statuses = hr.metric_status;
+  const trustSentence = count(rec.rows_in_file) + " HR rows " + (rec.balanced ? "reconcile" : "do NOT reconcile") + " to " +
+    count(rec.employees_out) + " employees: " + count(statuses.INCLUDED || 0) + " are used, " + count(statuses.QUARANTINED || 0) +
+    " are quarantined and " + count(statuses.EXCLUDED || 0) + " are excluded.";
+  setFinding("trust", trustSentence, undefined, trustMeaning(sources, sensitivity));
+
+  // 2. Sources: status, freshness, licence, attribution. Long notes fold into the row.
+  buildTable(byId("trust-sources"), [
+    { label: "Source", format: (row) => sourceCell(row) },
+    { label: "Status", format: (row) => statusText(row.status) },
+    { label: "Latest period", format: (row) => row.latest_period || "–" },
+    { label: "Coverage", format: (row) => (row.coverage_first_period ? row.coverage_first_period + " to " + row.coverage_last_period : "–") },
+    { label: "Frequency / lag", format: (row) => row.frequency + (row.publication_lag_months ? ", +" + row.publication_lag_months + " months" : "") },
+    { label: "Licence", format: (row) => licenceCell(row) },
+  ], sources);
+
+  // 3. Quality: reconciliation, statuses, flags.
+  byId("trust-reconciliation").textContent = count(rec.rows_in_file) + " rows in the HR file − " + rec.duplicate_rows_removed +
     " repeated rows removed = " + rec.employees_out + " employees (" + (rec.balanced ? "reconciled" : "NOT reconciled") + ").";
   const statusTiles = byId("trust-status");
   clear(statusTiles);
@@ -1112,10 +1621,10 @@ async function loadTrust(myLoad) {
     QUARANTINED: "unverified exits, added back only in the sensitivity run",
     EXCLUDED: "no usable hire date or impossible dates",
   };
-  for (const [status, count] of Object.entries(hr.metric_status)) {
+  for (const [status, total] of Object.entries(hr.metric_status)) {
     const tile = el("div", null, "tile");
-    tile.appendChild(el("div", status, "tile-label"));
-    tile.appendChild(el("div", String(count), "tile-value"));
+    tile.appendChild(el("div", status.charAt(0) + status.slice(1).toLowerCase(), "tile-label"));
+    tile.appendChild(el("div", count(total), "tile-value"));
     tile.appendChild(el("div", statusMeaning[status] || "", "tile-detail"));
     statusTiles.appendChild(tile);
   }
@@ -1163,9 +1672,64 @@ function statusText(status) {
   return words[status] || status || "–";
 }
 
+/** "Sensitivity + source" reading for the Trust finding. */
+function trustMeaning(sources, sensitivity) {
+  const name = lowerFirst(objectiveMeta(state.objective).name);
+  const byStatus = {};
+  for (const source of sources) {
+    byStatus[source.status] = (byStatus[source.status] || 0) + 1;
+  }
+  const parts = [sensitivity.summary.replace(/\.$/, "") + " (" + name + ")."];
+  const usable = (byStatus.fresh || 0) + (byStatus.replayed || 0);
+  let sourceText = usable + " of " + sources.length + " sources are usable";
+  const detail = [];
+  if (byStatus.fresh) {
+    detail.push(byStatus.fresh + " fetched in this run");
+  }
+  if (byStatus.replayed) {
+    detail.push(byStatus.replayed + " replayed from saved snapshots");
+  }
+  if (byStatus.stale) {
+    detail.push(byStatus.stale + " stale");
+  }
+  if (detail.length > 0) {
+    sourceText += " (" + detail.join(", ") + ")";
+  }
+  parts.push(sourceText + ".");
+  parts.push("Uncertain records are flagged and set aside, never deleted or guessed.");
+  return parts.join(" ");
+}
+
+/** Source name + provider/dataset, with the long note folded into a details element. */
+function sourceCell(row) {
+  const cell = el("div");
+  cell.appendChild(el("span", row.indicator));
+  cell.appendChild(el("span", row.provider + ", " + row.dataset, "cell-sub"));
+  if (row.note) {
+    const note = el("details");
+    note.appendChild(el("summary", "Note"));
+    note.appendChild(el("p", row.note, "cell-note"));
+    cell.appendChild(note);
+  }
+  return cell;
+}
+
+/** Short licence name; the full wording is on the provider's terms page (and in /api/sources). */
+function licenceShort(licence) {
+  if (licence.indexOf("2011/833/EU") >= 0) {
+    return "EU reuse decision 2011/833/EU (CC BY 4.0)";
+  }
+  if (licence.indexOf("CC BY 4.0") >= 0) {
+    return "CC BY 4.0";
+  }
+  return licence;
+}
+
 function licenceCell(row) {
   const wrapper = el("span");
-  wrapper.appendChild(el("span", row.licence));
+  const name = el("span", licenceShort(row.licence));
+  name.title = row.licence;
+  wrapper.appendChild(name);
   if (row.terms_url) {
     wrapper.appendChild(document.createTextNode(" "));
     const link = el("a", "terms");
@@ -1182,6 +1746,7 @@ function licenceCell(row) {
 
 async function init() {
   setupTabs();
+  setupSegmentPanel();
   try {
     fillFilters(await fetchJson("/api/filters"));
   } catch (error) {
@@ -1192,7 +1757,7 @@ async function init() {
   }
   loadHealth();
 
-  const filterIds = ["f-objective", "f-country", "f-segment", "f-from", "f-to", "f-variant"];
+  const filterIds = ["f-objective", "f-country", "f-from", "f-to", "f-variant"];
   for (const id of filterIds) {
     byId(id).addEventListener("change", function () {
       readFilters();

@@ -18,6 +18,19 @@ def open_dashboard(page: Page, server_url: str) -> None:
     expect(page.locator("[data-testid=rate-tile]").first).to_be_visible()
 
 
+def choose_segment(page: Page, choices: dict) -> None:
+    """Open the segment panel, pick one value per field, apply (D-86).
+
+    Example: choose_segment(page, {"employment_type": "Fixed Term", "career_level": "Manager"})
+    """
+    page.click("#f-segment")
+    expect(page.locator("#segment-panel")).to_be_visible()
+    for dimension, value in choices.items():
+        page.select_option("#seg-" + dimension, value)
+    page.click("#seg-apply")
+    expect(page.locator("#segment-panel")).to_be_hidden()
+
+
 def test_page_loads_with_data_and_healthy_status(page: Page, server_url):
     open_dashboard(page, server_url)
     expect(page.locator("#health")).to_have_attribute("data-health", "ok")
@@ -41,7 +54,7 @@ def test_country_and_segment_filters_change_the_numbers(page: Page, server_url):
     company = page.locator("[data-testid=rate-tile]").first.inner_text()
     page.select_option("#f-country", "RO")
     expect(page.locator("#explore-title")).to_contain_text("Romania")
-    page.select_option("#f-segment", "employment_type:Fixed Term")
+    choose_segment(page, {"employment_type": "Fixed Term"})
     expect(page.locator("#explore-label")).to_contain_text("employment_type = Fixed Term")
     expect(page.locator("[data-testid=rate-tile]").first).not_to_have_text(company)
 
@@ -57,7 +70,7 @@ def test_turnover_objective_disables_the_segment_filter(page: Page, server_url):
 def test_empty_state_for_a_slice_without_hires(page: Page, server_url):
     open_dashboard(page, server_url)
     page.select_option("#f-objective", "SENIOR_HIRE_12M")
-    page.select_option("#f-segment", "career_level:Manager")  # senior = Senior Leader only (D-14)
+    choose_segment(page, {"career_level": "Manager"})  # senior = Senior Leader only (D-14)
     message = page.locator("#explore-message")
     expect(message).to_have_attribute("data-kind", "empty")
     expect(message).to_contain_text("No mature hires match these filters")
@@ -138,6 +151,104 @@ def test_tabs_work_with_the_keyboard(page: Page, server_url):
     expect(page.locator("#tab-understand")).to_have_attribute("aria-selected", "true")
     expect(page.locator("#panel-understand")).to_be_visible()
     expect(page.locator("#panel-explore")).to_be_hidden()
+
+
+def test_explore_finding_explains_an_inconclusive_verdict(page: Page, server_url):
+    # D-84/D-85: each tab opens with a plain-language finding built from the data.
+    open_dashboard(page, server_url)
+    finding = page.locator("#explore-finding")
+    expect(finding).to_contain_text("87.5%")
+    expect(finding).to_contain_text("1,579 of 1,804 hires")
+    expect(finding).to_contain_text("cannot yet say")
+    expect(page.locator("#explore-meaning")).to_contain_text("Inconclusive in every year from 2021 to 2025")
+
+
+def test_explore_finding_follows_the_filters(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.select_option("#f-objective", "SENIOR_HIRE_12M")
+    finding = page.locator("#explore-finding")
+    expect(finding).to_contain_text("78.2%")
+    expect(finding).to_contain_text("below the 90% target")
+    expect(page.locator("#explore-meaning")).to_contain_text("Not met in every year from 2021 to 2024")
+    company = finding.inner_text()
+    page.select_option("#f-country", "RO")
+    expect(finding).to_contain_text("in Romania")
+    expect(finding).not_to_have_text(company)
+
+
+def test_explore_finding_for_turnover(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.select_option("#f-objective", "REGRETTED_TURNOVER_12M")
+    finding = page.locator("#explore-finding")
+    expect(finding).to_contain_text("5.11%")
+    expect(finding).to_contain_text("so the target is met")
+    expect(page.locator("#explore-meaning")).to_contain_text("5 of 5 years")
+
+
+def test_understand_finding_summarises_all_objectives(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.click("#tab-understand")
+    finding = page.locator("#understand-finding")
+    expect(finding).to_contain_text("senior-hire retention is not met")
+    expect(finding).to_contain_text("regretted turnover is met")
+    expect(page.locator("#understand-meaning")).to_contain_text("Unemployment rate fell in 5 of 6 countries")
+
+
+def test_challenge_finding_counts_the_formal_tests(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.click("#tab-challenge")
+    finding = page.locator("#challenge-finding")
+    expect(finding).to_contain_text("None of the 4 formal within-country tests")
+    expect(page.locator("#challenge-meaning")).to_contain_text("associative, not causal")
+
+
+def test_trust_finding_summarises_reconciliation_and_sensitivity(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.click("#tab-trust")
+    finding = page.locator("#trust-finding")
+    expect(finding).to_contain_text("2,407 HR rows reconcile to 2,400 employees")
+    expect(page.locator("#trust-meaning")).to_contain_text("No verdict changes")
+
+
+def test_segments_combine_and_show_as_chips(page: Page, server_url):
+    # D-86: several fields in one small panel, combined with AND; chips show what is active.
+    open_dashboard(page, server_url)
+    choose_segment(page, {"employment_type": "Fixed Term", "career_level": "Manager"})
+    expect(page.locator("#f-segment")).to_have_text("Fixed Term, Manager")
+    chips = page.locator("#segment-chips button")
+    expect(chips).to_have_count(2)
+    both = "employment_type = Fixed Term and career_level = Manager"
+    expect(page.locator("#explore-label")).to_contain_text(both)
+    expect(page.locator("[data-testid=rate-tile]").first).to_contain_text("n = 106")
+
+
+def test_removing_a_chip_removes_that_filter_only(page: Page, server_url):
+    open_dashboard(page, server_url)
+    choose_segment(page, {"employment_type": "Fixed Term", "career_level": "Manager"})
+    page.click("#segment-chips button[data-dimension=career_level]")
+    expect(page.locator("#segment-chips button")).to_have_count(1)
+    expect(page.locator("[data-testid=rate-tile]").first).to_contain_text("n = 336")
+    page.click("#segment-clear-all")
+    expect(page.locator("#f-segment")).to_have_text("All employees")
+    expect(page.locator("#segment-chips")).to_be_hidden()
+
+
+def test_business_unit_narrows_the_job_families(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.click("#f-segment")
+    page.select_option("#seg-business_unit", "Digital")
+    options = page.locator("#seg-job_family option")
+    expect(options).to_have_text(["Any", "Data", "Product", "Software"])
+
+
+def test_escape_closes_the_segment_panel_without_applying(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.click("#f-segment")
+    page.select_option("#seg-employment_type", "Fixed Term")
+    page.keyboard.press("Escape")
+    expect(page.locator("#segment-panel")).to_be_hidden()
+    expect(page.locator("#f-segment")).to_be_focused()
+    expect(page.locator("#f-segment")).to_have_text("All employees")
 
 
 def test_every_chart_has_a_table_view(page: Page, server_url):

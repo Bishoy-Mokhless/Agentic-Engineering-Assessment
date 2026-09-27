@@ -20,7 +20,10 @@ def cohorts(
     country: str = "ALL",
     grain: Literal["quarter", "year", "period"] = "quarter",
     variant: Literal["primary", "with_unverified_exits"] = "primary",
-    segment: str | None = Query(default=None, description="e.g. employment_type:Fixed Term"),
+    segment: list[str] | None = Query(
+        default=None,
+        description="e.g. employment_type:Fixed Term; repeat it to combine fields with AND (D-86)",
+    ),
     year_from: int | None = year_query("first year to include, e.g. 2022"),
     year_to: int | None = year_query("last year to include, e.g. 2024"),
     store: CuratedStore = Depends(get_store),
