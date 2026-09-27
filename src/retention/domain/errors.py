@@ -17,3 +17,18 @@ class CurationError(PipelineError):
 
 class ContractError(PipelineError):
     """A table does not match its schema contract (D-46, D-61)."""
+
+
+# --- Errors raised while answering API requests (mapped to HTTP codes in api/errors.py, D-44) ---
+
+
+class DataNotBuiltError(Exception):
+    """The curated data does not exist yet -> HTTP 503 "run `retention run` first"."""
+
+
+class NotFoundError(Exception):
+    """An unknown objective, country, indicator or segment value -> HTTP 404."""
+
+
+class InvalidFilterError(Exception):
+    """A filter that makes no sense, e.g. from after to -> HTTP 400."""

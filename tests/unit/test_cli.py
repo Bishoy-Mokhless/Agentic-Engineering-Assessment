@@ -32,3 +32,15 @@ def test_run_refresh_passes_refresh_mode(monkeypatch):
     monkeypatch.setattr("retention.cli.run_pipeline", lambda settings, mode: calls.append(mode) or 0)
     main(["run", "--refresh"])
     assert calls == ["refresh"]
+
+
+def test_serve_starts_uvicorn_with_the_app(monkeypatch):
+    started = {}
+
+    def fake_run(app, host, port, log_level):
+        started["title"] = app.title
+        started["address"] = (host, port)
+
+    monkeypatch.setattr("uvicorn.run", fake_run)
+    assert main(["serve", "--port", "8123"]) == 0
+    assert started == {"title": "Retention signals API", "address": ("127.0.0.1", 8123)}

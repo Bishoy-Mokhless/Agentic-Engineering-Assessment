@@ -45,6 +45,20 @@ def configure_logging(level: int = logging.INFO) -> None:
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
 
 
+def serve(settings, host: str, port: int) -> int:
+    """Start the API + dashboard with uvicorn (the embedded server, like Tomcat in Spring Boot)."""
+    import uvicorn
+
+    from retention.api.app import create_app
+
+    app = create_app(settings)
+    if not app.state.store.is_built():
+        log.warning("No curated data yet: the API will answer 503 until you run `retention run`.")
+    log.info("Dashboard: http://%s:%d/   API docs: http://%s:%d/docs", host, port, host, port)
+    uvicorn.run(app, host=host, port=port, log_level="info")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging()
@@ -58,8 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_pipeline(settings, mode)
 
     if args.command == "serve":
-        log.info("API/dashboard are added in Step 6 (would listen on http://%s:%d).", args.host, args.port)
-        return 0
+        return serve(settings, args.host, args.port)
 
     return 1
 

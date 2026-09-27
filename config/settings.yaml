@@ -29,6 +29,25 @@ providers:
   eurostat: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/
   worldbank: https://api.worldbank.org/v2/
 
+# Licence and attribution per provider, shown in the dashboard's Trust view (/api/sources).
+# Checked on the providers' own pages on 2026-09-28 (not written from memory).
+provider_terms:
+  eurostat:
+    name: Eurostat (European Commission)
+    licence: "Reuse permitted under Commission Decision 2011/833/EU (editorial content CC BY 4.0)"
+    terms_url: https://ec.europa.eu/eurostat/help/copyright-notice
+    attribution: "Source: Eurostat. Reuse requires acknowledging the source and indicating changes made."
+  worldbank:
+    name: World Bank (World Development Indicators)
+    licence: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+    terms_url: https://datacatalog.worldbank.org/public-licenses
+    attribution: "Source: World Bank, World Development Indicators. Changes: filtered to 6 countries, 2019-2025."
+  hr:
+    name: Assessment starter pack (synthetic, fictional)
+    licence: "Provided for the assessment; all people, events and targets are fictional"
+    terms_url: ""
+    attribution: "Asteria Consumer Products assessment data pack v1.0 (synthetic)."
+
 indicators:
   unemployment:                       # D-24
     provider: eurostat

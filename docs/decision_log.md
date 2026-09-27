@@ -101,6 +101,7 @@ This log is the source for:
 | D-79 | 14 | Time confounding | Formal test unchanged; add descriptive time-adjusted view + indicator-vs-time diagnostic | ✅ Yes |
 | D-80 | 14 | Row weighting in Spearman | Unweighted (each cohort row counts once); n shown; limitation stated | ✅ Yes |
 | D-81 | 14 | Git commits (change) | Agent commits and pushes after each step, once I reply OK (**supersedes D-53**) | ✏️ My own answer |
+| D-82 | 15 | Steps 6–8 delegation | Agent builds, tests, commits and pushes Steps 6, 7 and 8 one by one without per-step MCQs; small choices logged as agent choices; Step 9 on hold | ✏️ My own answer |
 
 ---
 
@@ -1947,6 +1948,29 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 
 ---
 
+## Round 15: Steps 6–8 delegated (API, dashboard, UI tests)
+
+### D-82: Delegated execution of Steps 6–8 ✏️
+- **What I said:** go from Step 6 to Step 8, don't do Step 9. Check and test each step on its own, make sure everything works, and commit and push each step separately. Step 9 (docs and presentation) will be adjusted later with other plans.
+- **Effect:**
+  - The agent does not stop for MCQs inside Steps 6–8. Where a small new choice comes up, it takes the option it would have recommended, marks it **🤖 agent choice (D-82)** below, and records the alternatives, so I can review or reverse it later.
+  - Each step ends only when `ruff check .`, `ruff format --check .` and `pytest` pass and the step has been checked by hand. It is then committed and pushed as its own commit (D-81 without waiting for an OK, for these three steps only).
+  - Step 9 is not started.
+- **Why:** the design decisions for these steps were already taken in Rounds 1 and 8 (D-04, D-05, D-44, D-45, D-63, D-75…D-78), so what is left is mostly engineering.
+
+### Step 6 agent choices (🤖 D-82)
+| Choice | Taken | Alternatives not taken |
+|---|---|---|
+| Extra endpoint `/api/association/points` | 🤖 Added: the Challenge view's scatter needs the points behind each result (value, rate, n, source period, age, view-transformed x/y) | Put points inside `/api/association` (one very large response) |
+| Invalid parameter code | 🤖 **400** with a readable message for every invalid filter (D-44), instead of FastAPI's default 422 | Keep 422 (would contradict D-44) |
+| `/api/health` | 🤖 Always 200, with `status` = ok / degraded / no_data inside, so the page can always show why | 503 when degraded (the page could not show the reason) |
+| Reading files | 🤖 Read on every request (files < 100 KB); after `retention run` swaps a new build in, the next request sees it | In-memory cache (needs invalidation logic) |
+| Licence text in `/api/sources` | 🤖 Checked on the providers' pages on 2026-09-28: World Bank CC BY 4.0; Eurostat reuse under Commission Decision 2011/833/EU (editorial content CC BY 4.0), acknowledge source and changes | Written from memory (the brief warns against this) |
+| Cohort rows with n = 0 | 🤖 Returned (e.g. 2025-Q3/Q4 for NEW_HIRE_6M), with `immature_hires` and no rate, so "not measurable yet" is visible (D-18) | Hide them |
+| ruff B008 | 🤖 Configured `extend-immutable-calls` for FastAPI's `Depends`/`Query` defaults (standard FastAPI style) | Rewrite every endpoint without defaults |
+
+---
+
 ## Implementation log
 
 ### Step 1: Project skeleton (2026-09-27)
@@ -2079,6 +2103,27 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 **Issues met:** the contract caught `age_months` as int64 instead of float (it's nullable in principle). The run stopped and kept the old outputs; fixed by casting in the service. The analyse step takes about 13 s because of 36,000 bootstrap resamples, which is acceptable for a batch run.
 
 **Decision changes:** none.
+
+### Step 6: API (2026-09-28)
+**Built:**
+- `api/app.py` (`create_app`: routers, error handlers, dashboard files mounted at `/` once they exist), `api/errors.py` (one JSON error shape; 400 / 404 / 503 / 500), `api/dependencies.py` (injection of store and settings; `year_query`)
+- Routers: `system.py` (`/api/health`, `/api/filters`), `objectives.py` (`/api/retention/cohorts`, `/turnover`, `/sensitivity`), `signals.py` (`/api/indicators`, `/api/association`, `/api/association/points`), `trust.py` (`/api/quality`, `/api/sources`)
+- `service/dashboard_queries.py` (validation, filtering, on-request segment aggregation with the same SQL as the pipeline (D-77), JSON-safe output: NaN → null, dates → ISO)
+- `repository/curated_store.py` (read-only access to the published layers; `DataNotBuiltError` → 503)
+- `retention serve [--host] [--port]` starts uvicorn; warns if nothing is built yet
+- Settings: `provider_terms` (licence, terms URL, attribution per provider)
+- Tests: `tests/api/test_api.py` (26 tests incl. 10 error cases), `test_cli.py` serve test (128 tests total)
+
+**Decisions implemented:** D-05, D-44, D-47 (source status exposed), D-49, D-62, D-63, D-75…D-78, D-82 choices above.
+
+**Verified:**
+- Every endpoint returns 200 on the real data; headline numbers match Step 4 (senior 208/266 not met; turnover Dec 2021 23 and Dec 2025 82 regretted exits).
+- Segment consistency: Fixed Term n + Permanent n = total n (and the same for retained).
+- Errors: unknown objective / country / indicator / segment value → 404; bad grain, year range, segment format → 400; no data → 503 with "run `retention run` first"; `/api/health` → `no_data`.
+- Real server: `retention serve --port 8765` answered `/api/health` (ok), `/docs` (200), `?country=FR` (404).
+- `ruff` clean; `pytest`: 128 passed.
+
+**Issues met:** reusing one `Query(...)` object for both `year_from` and `year_to` made FastAPI treat them as the same parameter (`year_to` silently equalled `year_from`), so a reversed range returned 200. It was found by a manual error-case check before the tests were written, and fixed with one `Query` per parameter (`year_query`); a regression test covers it. One test expectation was wrong (18 vs 20 quarter rows; the two extra rows are immature quarters, correct per D-18).
 
 ---
 

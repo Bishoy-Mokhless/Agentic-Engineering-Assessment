@@ -52,6 +52,15 @@ class IndicatorSettings(BaseModel):
     exclude_from_analysis: list[str] = []
 
 
+class ProviderTerms(BaseModel):
+    """Licence and attribution shown in the Trust view (brief: source attribution)."""
+
+    name: str
+    licence: str
+    terms_url: str
+    attribution: str
+
+
 class MetricsSettings(BaseModel):
     report_start: date  # D-23
     confidence_level: float  # D-33
@@ -79,6 +88,7 @@ class Settings(BaseModel):
     http: HttpSettings
     publication_lag_months: dict[Frequency, int]  # D-29
     providers: dict[Provider, str]
+    provider_terms: dict[str, ProviderTerms]
     indicators: dict[str, IndicatorSettings]
     metrics: MetricsSettings
     analysis: AnalysisSettings
