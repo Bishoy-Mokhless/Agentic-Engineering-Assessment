@@ -1,0 +1,53 @@
+# Project definition and dependencies (D-42). Spring analogy: pom.xml.
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retention"
+version = "0.1.0"
+description = "External signals x workforce retention: pipeline, analysis and dashboard"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2,<3",       # D-02: data processing
+    "pyarrow>=16",          # D-41: Parquet files
+    "duckdb>=1.0",          # D-03: SQL on Parquet
+    "requests>=2.32",       # D-47: HTTP clients with retry
+    "pyyaml>=6",            # config/settings.yaml
+    "pydantic>=2.7",        # typed settings and API DTOs
+    "pandera>=0.20",        # D-46: schema contracts
+    "numpy>=1.26",
+    "scipy>=1.13",          # D-32: Spearman correlation
+    "fastapi>=0.111",       # D-05: API
+    "uvicorn>=0.30",        # server that runs FastAPI (like embedded Tomcat)
+]
+
+[project.optional-dependencies]
+# Dev/test-only libraries. Spring analogy: Maven <scope>test</scope>.
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",            # needed by FastAPI's TestClient
+    "pytest-playwright>=0.5", # D-45: UI smoke tests
+    "ruff>=0.5",              # D-50: lint + format
+]
+
+[project.scripts]
+# D-43: installs the `retention` command. Spring analogy: the jar's main class.
+retention = "retention.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+retention = ["sql/*.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

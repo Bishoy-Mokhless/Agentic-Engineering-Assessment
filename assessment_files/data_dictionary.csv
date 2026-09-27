@@ -1,0 +1,22 @@
+dataset,column_name,logical_type,nullable,description
+employee_lifecycle_events,employee_id,string,no,Synthetic stable employee identifier; not a real person.
+employee_lifecycle_events,country_code,string,yes,Reported operating-country code; profile and canonicalise before joining.
+employee_lifecycle_events,business_unit,string,no,Fictional organisational grouping.
+employee_lifecycle_events,job_family,string,no,Fictional role family within a business unit.
+employee_lifecycle_events,career_level,string,no,Reported career-level label.
+employee_lifecycle_events,employment_type,string,no,Permanent or fixed-term employment.
+employee_lifecycle_events,hire_date,date,yes,Employment start date in ISO 8601 format.
+employee_lifecycle_events,termination_date,date,yes,Employment end date; blank generally indicates active at the as-of date.
+employee_lifecycle_events,termination_type,string,yes,"Voluntary, involuntary, end-of-contract, or blank."
+employee_lifecycle_events,regretted_exit,boolean,yes,Business classification for a termination; may be inapplicable or unknown.
+employee_lifecycle_events,source_system,string,no,Fictional source-system label.
+employee_lifecycle_events,record_updated_at,date,no,Synthetic source update date.
+retention_objectives,objective_id,string,no,Stable fictional objective code.
+retention_objectives,objective_name,string,no,Business-facing objective name.
+retention_objectives,direction,string,no,Whether performance must be at least or at most the threshold.
+retention_objectives,target_value,decimal,no,Threshold expressed as a proportion.
+retention_objectives,unit,string,no,Measurement unit.
+retention_objectives,scope,string,no,Business scope requiring technical refinement.
+retention_objectives,effective_from,date,no,First date for which the objective applies.
+retention_objectives,effective_to,date,no,Last date for which the objective applies.
+retention_objectives,business_note,string,no,A deliberate prompt for requirement refinement.

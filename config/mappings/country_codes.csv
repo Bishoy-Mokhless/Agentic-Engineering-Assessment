@@ -1,0 +1,21 @@
+source,source_code,canonical_code,note
+hr,GR,GR,
+hr,RO,RO,
+hr,PL,PL,
+hr,IT,IT,
+hr,IE,IE,
+hr,BG,BG,
+hr,EL,GR,D-08: EL is the EU/Eurostat code for Greece
+hr,ROM,RO,D-08: legacy 3-letter code for Romania
+eurostat,EL,GR,Eurostat uses EL for Greece
+eurostat,RO,RO,
+eurostat,PL,PL,
+eurostat,IT,IT,
+eurostat,IE,IE,
+eurostat,BG,BG,
+worldbank,GRC,GR,World Bank uses ISO 3166 alpha-3
+worldbank,ROU,RO,
+worldbank,POL,PL,
+worldbank,ITA,IT,
+worldbank,IRL,IE,
+worldbank,BGR,BG,

@@ -1,0 +1,79 @@
+# Application settings. Spring analogy: application.yml.
+# Decision IDs (D-xx) refer to docs/decision_log.md.
+
+as_of_date: 2025-12-31                # workforce data as-of date (assessment manifest)
+
+countries: [GR, RO, PL, IT, IE, BG]   # canonical codes, ISO 3166 alpha-2 (D-08)
+
+paths:                                # relative to the project root
+  raw: data/raw                       # D-41: untouched source data, kept per fetch date (D-48)
+  canonical: data/curated/canonical   # D-41: cleaned, typed, flagged
+  analytical: data/curated/analytical # D-41: metrics, joined tables, analysis results
+  hr_source: assessment_files         # supplied HR starter files
+  mappings: config/mappings           # D-08, D-13: code/label mapping tables
+
+http:                                 # D-47: resilience for external APIs
+  timeout_seconds: 60
+  retries: 3
+  backoff_factor: 1.0                 # waits ~1s, 2s, 4s between retries
+
+publication_lag_months:               # D-29/D-58: conservative fixed-lag approximations based on
+                                      # observed source availability - NOT exact historical release dates
+  monthly: 2
+  quarterly: 3
+  annual: 7
+
+providers:
+  eurostat: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/
+  worldbank: https://api.worldbank.org/v2/
+
+indicators:
+  unemployment:                       # D-24
+    provider: eurostat
+    dataset: une_rt_m
+    frequency: monthly
+    lens: labour_supply
+    unit: "% of labour force"
+    since: "2019-01"
+    filters: {s_adj: SA, age: TOTAL, sex: T, unit: PC_ACT}
+
+  inflation:                          # D-25 (dataset discontinued in 2026; successor prc_hicp_minr)
+    provider: eurostat
+    dataset: prc_hicp_manr
+    frequency: monthly
+    lens: cost_of_living
+    unit: "% annual rate of change"
+    since: "2019-01"
+    filters: {coicop: CP00}
+
+  job_vacancy:                        # D-26 (indic_em=JVR verified; JOBRATE returned no data)
+    provider: eurostat
+    dataset: jvs_q_nace2
+    frequency: quarterly
+    lens: labour_demand
+    unit: "% of jobs vacant"
+    since: "2019-Q1"
+    filters: {nace_r2: B-S, sizeclas: TOTAL, indic_em: JVR, s_adj: NSA}
+
+  gdp_growth:                         # D-27
+    provider: worldbank
+    dataset: NY.GDP.MKTP.KD.ZG
+    frequency: annual
+    lens: economic_cycle
+    unit: "% annual growth (constant prices)"
+    since: "2019"
+    exclude_from_analysis: [IE]       # D-27/D-59: IE data is kept and shown; only excluded from GDP
+                                      # association tests (multinational accounting distortion), and the
+                                      # exclusion is reported with the results - never silent
+
+analysis:
+  bootstrap_iterations: 1000          # D-33
+  random_seed: 20260831               # D-48: deterministic reruns (same seed as the data pack)
+  alpha: 0.05                         # D-34: significance level before Holm correction
+  formal_view: within_country         # D-54: the only view used for formal (Holm-corrected) tests
+  descriptive_views: [pooled]         # D-54: shown as context, never in a Holm family
+  # D-55: one Holm family per objective = the 4 indicators x within-country view (4 tests each)
+  objectives:
+    NEW_HIRE_6M:            {role: primary,   grain: country_hire_quarter}
+    SENIOR_HIRE_12M:        {role: secondary, grain: country_hire_year}      # D-36: quarterly shown descriptively
+    REGRETTED_TURNOVER_12M: {role: secondary, grain: country_year_end_ttm}   # D-37: December TTM only

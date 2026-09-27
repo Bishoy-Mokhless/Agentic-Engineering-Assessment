@@ -1,0 +1,18 @@
+# IDE
+.idea/
+.vscode/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+
+# Pipeline temp output (D-48: curated layers are built in a temp folder, then swapped in)
+data/.tmp/

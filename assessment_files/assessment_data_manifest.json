@@ -1,0 +1,31 @@
+{
+  "package": "Asteria Consumer Products agentic engineering assessment",
+  "version": "1.0",
+  "synthetic": true,
+  "deterministic_seed": 20260831,
+  "workforce_as_of_date": "2025-12-31",
+  "generated_data_notice": "All company, employee, event, and target data is fictional.",
+  "files": [
+    {
+      "name": "employee_lifecycle_events.csv",
+      "rows_including_header": 2408,
+      "data_rows": 2407,
+      "bytes": 238685,
+      "sha256": "9397a896d3111f178efa10206cadff956295e69bf599639ade01c98aece90b3e"
+    },
+    {
+      "name": "retention_objectives.csv",
+      "rows_including_header": 4,
+      "data_rows": 3,
+      "bytes": 660,
+      "sha256": "a774edd86360812d32af04cf5c4f82c3bebb0068b3f4b2a560b4a89cb98f2463"
+    },
+    {
+      "name": "data_dictionary.csv",
+      "rows_including_header": 22,
+      "data_rows": 21,
+      "bytes": 2004,
+      "sha256": "d0a47b953ada63d6afa28fd2716eb1a66cf589b090571d6d873307433ddc6238"
+    }
+  ]
+}

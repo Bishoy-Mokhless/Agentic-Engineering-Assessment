@@ -1,0 +1,4 @@
+objective_id,objective_name,direction,target_value,unit,scope,effective_from,effective_to,business_note
+NEW_HIRE_6M,New-hire six-month retention,at_least,0.86,proportion,All new hires,2021-01-01,2025-12-31,Create a defensible cohort definition and address incomplete observation windows.
+SENIOR_HIRE_12M,Senior-hire twelve-month retention,at_least,0.90,proportion,Senior hires,2021-01-01,2025-12-31,Document which career levels qualify and how cohort maturity is determined.
+REGRETTED_TURNOVER_12M,Trailing twelve-month regretted turnover,at_most,0.075,proportion,All employees,2021-01-01,2025-12-31,State the denominator and average-headcount convention.
