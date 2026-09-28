@@ -102,7 +102,13 @@ This log is the source for:
 | D-80 | 14 | Row weighting in Spearman | Unweighted (each cohort row counts once); n shown; limitation stated | ✅ Yes |
 | D-81 | 14 | Git commits (change) | Agent commits and pushes after each step, once I reply OK (**supersedes D-53**) | ✏️ My own answer |
 | D-82 | 15 | Steps 6–8 delegation | Agent builds, tests, commits and pushes Steps 6, 7 and 8 one by one without per-step MCQs; small choices logged as agent choices; Step 9 on hold | ✏️ My own answer |
-
+| D-83 | 16 | Dark mode | Removed; the dashboard is light only | ✏️ My own answer |
+| D-84 | 16 | Dashboard redesign | "Verdict-first report" layout (visual part later replaced by D-85) | ✅ Yes |
+| D-85 | 16 | Dashboard look | Back to the old look, with colour per block and more descriptions (replaces the visual part of D-84) | ✏️ My own answer |
+| D-86 | 16 | Segment filter fields | One button + panel; up to 4 fields combined with AND (extends D-77) | ✅ Yes |
+| D-87 | 16 | Product rebrand | ASTERIA \| Workforce Intelligence; views Overview / Explore / Evidence | ✏️ My own answer |
+| D-88 | 16 | Disabled segment filter | Tooltip explains why segments are off for turnover | ✏️ My own answer |
+| D-89 | 17 | Plan split | Step 9 = finish the dashboard (bugs, decisions, findings); Step 10 = all submission and presentation deliverables | ✏️ My own answer |
 ---
 
 ## Round 0: How we work
@@ -1957,6 +1963,7 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
   - The agent does not stop for MCQs inside Steps 6–8. Where a small new choice comes up, it takes the option it would have recommended, marks it **🤖 agent choice (D-82)** below, and records the alternatives, so I can review or reverse it later.
   - Each step ends only when `ruff check .`, `ruff format --check .` and `pytest` pass and the step has been checked by hand. It is then committed and pushed as its own commit (D-81 without waiting for an OK, for these three steps only).
   - Step 9 is not started.
+  - 🔁 **Step 9's scope was changed by D-89:** docs and presentation moved to a new Step 10.
 - **Why:** the design decisions for these steps were already taken in Rounds 1 and 8 (D-04, D-05, D-44, D-45, D-63, D-75…D-78), so what is left is mostly engineering.
 
 ### Step 6 agent choices (🤖 D-82)
@@ -2134,6 +2141,26 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
   - Choosing a hire objective enables the filter again and removes the tooltip.
 - **Known limit:** a disabled button cannot take keyboard focus, so keyboard users do not see the tooltip. Visible hint text under the filter would fix that if needed.
 - **Tests (TDD):** the existing turnover UI test now also checks the tooltip is present for turnover and gone for a hire objective. It was written first and seen failing.
+
+## Round 17: Re-plan of the last steps (2026-09-28)
+
+### D-89: Split the old Step 9 into Step 9 (finish the dashboard) and Step 10 (submission) ✏️ (🔁 changes the Step 9 scope in D-82)
+- **What I said:** move everything for the presentation and the final submission to a new Step 10. Step 9 is for finishing the dashboard fully: fix bugs, add missing decisions, fix the findings. The website must be completely finished first; I will add more Step 9 requests later. Step 10 comes after that.
+- **Step 9: finish the dashboard (the website must be complete before Step 10):**
+  - Find and fix dashboard bugs, checked in a real browser and covered by tests.
+  - Bring the decision log up to date: missing decisions, the summary table, and stale text such as test counts.
+  - Findings on the page: check them against the pipeline and fill the gaps the brief names for insights (segment stability, data-health impact, what further evidence would be needed).
+  - Further requests from me, added to this list as they come.
+  - Ends when I confirm the website is finished.
+- **Step 10: submission and presentation (starts only after Step 9 is closed):**
+  - `README.md`: problem, scope, architecture, prerequisites, one-command run, dashboard run, tests, outputs, known limitations, and how the views map to the brief's Explore / Understand / Challenge / Trust.
+  - `docs/requirements_refinement.md` with acceptance criteria and rejected scope; `docs/source_register.md`; `docs/methodology.md` (the "Carry into final docs" list).
+  - Production architecture view: ADF-style orchestration, Databricks / lakehouse, Power BI, covering secrets, scheduling, observability, storage, access control and promotion between environments.
+  - `AI_USAGE.md`.
+  - Generated evidence: dashboard screenshots or export, quality / coverage report, source attribution.
+  - Effort statement and the status of the clarification questions (sent or not; assumptions used instead).
+  - Presentation deck for the 15-minute talk (3 / 5 / 4 / 3 minutes).
+- **Why:** screenshots, the README and the deck all describe the dashboard, so finishing the website first means they are written once, against the final version.
 
 ---
 
@@ -2341,10 +2368,11 @@ retention run
 retention serve        -> http://127.0.0.1:8000/  and  /docs
 ```
 
-**Decision changes:** none. **Next:** Step 9 (docs and presentation) is on hold, as agreed (D-82).
+**Decision changes:** none. **Next:** Step 9 (docs and presentation) is on hold, as agreed (D-82). 🔁 Re-planned by D-89: Step 9 = finish the dashboard, Step 10 = docs and presentation.
 
 ---
 
 ## Planning complete: next is implementation
 All planning rounds (0–8c) are done. Implementation proceeds step by step; any new decision that comes up during coding is recorded here in the same format.
+**Remaining steps (D-89):** Step 9 = finish the dashboard; Step 10 = submission and presentation deliverables.
 Possible later additions (deferred): CI with GitHub Actions (D-51, D-64), logistic regression (D-32), Kaplan-Meier (D-18), mypy (D-50). (Block bootstrap dropped in D-56.)
