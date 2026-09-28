@@ -27,7 +27,8 @@ const FILTER_SCOPE = {
   },
   trust: {
     filters: ["f-country", "f-segment", "f-from", "f-to", "f-variant"],
-    hint: "Evidence covers the whole data set, so the filters above do not apply here.",
+    hint: "Evidence covers the whole data set, so the filters do not apply here.",
+    hideRow: true, // D-93: no filter applies, so the row is hidden and only the note stays
   },
 };
 const SEGMENT_DISABLED_HINT = "Segments apply to hire cohorts only. Regretted turnover is measured for all employees.";
@@ -834,6 +835,8 @@ function applyFilterScope() {
   const note = byId("filter-scope-note");
   note.textContent = locked.hint;
   note.hidden = locked.filters.length === 0;
+  byId("filters").hidden = Boolean(locked.hideRow);
+  byId("segment-bar").hidden = Boolean(locked.hideRow) || segmentList().length === 0;
   for (const id of ["f-country", "f-segment", "f-from", "f-to", "f-variant"]) {
     let hint = locked.filters.indexOf(id) >= 0 ? locked.hint : "";
     if (!hint && id === "f-segment" && state.objective === TURNOVER) {

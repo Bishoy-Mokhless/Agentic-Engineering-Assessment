@@ -112,6 +112,7 @@ This log is the source for:
 | D-90 | 17 | Year filter and the headline | Whole-period row, cards and tiles follow the selected hire years (recomputed with the same SQL) | ✅ Yes |
 | D-91 | 17 | Filters a view does not use | Disabled with a tooltip + one visible line; Evidence gets its own objective choice | ✅ Yes |
 | D-92 | 17 | Findings the brief asks for | Segment stability, "what would settle this", data health on Overview, 2021 turnover ramp-up | ✅ Yes |
+| D-93 | 17 | Evidence filter row | Hidden on Evidence; only the note stays (changes D-91 for Evidence) | ✏️ My own answer |
 ---
 
 ## Round 0: How we work
@@ -2220,6 +2221,12 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 - **Tests (TDD):** API 3 (values add up per field; skipped fields; turnover rejected). UI 4 (stability in Explore, Overview findings, "what would settle this", ramp-up only when 2021 is selected).
 - **Speed:** the new endpoint made pages slow (the UI tests went from 18 s to 78 s). Profiling showed `stats.z_value` calling SciPy about 4,500 times per request; it is now cached (a pure function), and recomputes only use the requested objective's hires. One stability answer takes about 0.6 s.
 
+### D-93: Hide the filter row on Evidence ✏️ (🔁 changes D-91 for Evidence only)
+- **What I said:** hide the filters on Evidence but keep the note "Evidence covers the whole data set, so the filters above do not apply here."
+- **Wording:** with the row hidden, "the filters above" pointed at nothing, so the note became "Evidence covers the whole data set, so the filters do not apply here." (my OK).
+- **What it means:** on Evidence the filter row and the segment chips are hidden and only the note shows. Choices are kept: back on another view the row, the chips and the chosen values return. Relationships keeps the D-91 behaviour (disabled filters, Country still active).
+- **Tests (TDD):** the D-91 Evidence UI test now checks the row and chips are hidden, the note text, and that both come back on Overview with the segment still chosen. Written first and seen failing.
+
 ---
 
 ## Implementation log
@@ -2430,7 +2437,7 @@ retention serve        -> http://127.0.0.1:8000/  and  /docs
 
 
 ### Step 9: Finish the dashboard (in progress, 2026-09-28)
-**Done so far:** D-88 (segment tooltip), the Step 9 audit, D-90, D-91, D-92 and three bug fixes (Overview turnover card with a segment, turnover help text, Market signals turnover tile).
+**Done so far:** D-88 (segment tooltip), the Step 9 audit, D-90, D-91, D-92, D-93 and three bug fixes (Overview turnover card with a segment, turnover help text, Market signals turnover tile).
 **Verified:** `pytest` → **183 passed** (unit 102, API 41, UI 40); `ruff check .` and `ruff format --check .` clean; the browser sweep of 198 states shows no errors; screenshots checked by hand.
 **Issues met:** some files have Windows line endings (CRLF) that Git Bash tools hide; an edit script failed to match until it normalised them. `dashboard/index.html` ended up with mixed endings from earlier edits and is now CRLF again.
 **Next:** further Step 9 requests from me; Step 10 only after I confirm the website is finished (D-89).

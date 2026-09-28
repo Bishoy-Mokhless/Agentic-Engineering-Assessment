@@ -397,12 +397,22 @@ def test_relationships_disables_the_filters_the_formal_tests_ignore(page: Page, 
     expect(note).to_be_hidden()
 
 
-def test_evidence_disables_every_filter_and_has_its_own_objective(page: Page, server_url):
-    page.goto(server_url + "/#evidence")
+def test_evidence_hides_the_filters_and_has_its_own_objective(page: Page, server_url):
+    # D-93: Evidence hides the filter row (and the segment chips) but keeps the note.
+    open_dashboard(page, server_url)
+    choose_segment(page, {"employment_type": "Fixed Term"})
+    page.click("#nav-evidence")
     expect(page.locator("#trust-sensitivity-summary")).to_contain_text("New-hire")
-    for selector in PER_VIEW_FILTERS + ["#f-country"]:
-        expect(page.locator(selector)).to_be_disabled()
-    expect(page.locator("#filter-scope-note")).to_contain_text("whole data set")
+    expect(page.locator("#filters")).to_be_hidden()
+    expect(page.locator("#segment-bar")).to_be_hidden()
+    expect(page.locator("#filter-scope-note")).to_have_text(
+        "Evidence covers the whole data set, so the filters do not apply here."
+    )
+    page.click("#nav-overview")
+    expect(page.locator("#filters")).to_be_visible()
+    expect(page.locator("#segment-bar")).to_be_visible()  # the chosen segment is still there
+    expect(page.locator("#filter-scope-note")).to_be_hidden()
+    page.click("#nav-evidence")
     page.select_option("#e-objective", "SENIOR_HIRE_12M")
     expect(page.locator("#trust-sensitivity-summary")).to_contain_text("Senior-hire")
     expect(page.locator("#trust-meaning")).to_contain_text("senior-hire")

@@ -480,3 +480,4 @@ td summary { font-size: 0.8rem; }
 }
 .filters select:disabled { opacity: 0.55; cursor: not-allowed; }
 .segments-finding { margin: 0 0 8px; font-weight: 600; }
+#filters[hidden] ~ .scope-note { padding-top: 14px; } /* Evidence: the note stands alone (D-93) */
