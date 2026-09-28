@@ -9,7 +9,7 @@ def test_dashboard_page_and_assets_are_served():
     client = TestClient(create_app(dashboard_dir=DASHBOARD_DIR))
     page = client.get("/")
     assert page.status_code == 200
-    assert "<title>Retention Signals</title>" in page.text
+    assert "<title>Asteria Workforce Intelligence</title>" in page.text  # D-87
     for label in ['for="f-objective"', 'for="f-country"', 'for="f-segment"', 'for="f-from"']:
         assert label in page.text  # every filter has a visible label (accessibility)
     assert client.get("/app.js").status_code == 200

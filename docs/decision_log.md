@@ -2096,6 +2096,36 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
   - UI (4): combine + chips; remove one chip, then clear all; unit narrows job families; Escape closes without applying.
   - 2 existing UI tests now use the panel.
 
+### D-87: Product rebrand, three views: Overview / Explore / Evidence ✏️ (🔁 restructures D-05 and the Step 7 tabs; keeps D-84–D-86 content)
+- **What I said:** try a rebrand toward a "professional internal analytics product, not an HTML page with charts":
+  - identity **ASTERIA | Workforce Intelligence**, titled *Retention & Labour Market Insights*;
+  - three experiences: Overview (decision view), Explore (detailed work), Evidence (freshness, coverage, quality, sensitivity, method, attribution);
+  - fewer and larger charts, and status always as icon + word;
+  - "implementation depth over surface area";
+  - if it is not good, roll back.
+
+| Question | Options | Chosen |
+|---|---|---|
+| Where do Understand and Challenge go? | ⭐ Explore has 3 sub-views ✅ / relationships go to Evidence / one long Explore page | Explore: Objective detail, Market signals, Relationships |
+
+- **What changed:**
+  - A navy product bar, a new title and subtitle, and main navigation Overview | Explore | Evidence.
+  - The filter row (country, segment, years, data treatment) applies to every view. The objective choice moved into Explore, because Overview always shows all three.
+  - **Overview:**
+    - 3 objective cards; clicking one opens it in Explore;
+    - one trend chart, new-hire and senior by hire year, each with its dashed target (both are rates, so one axis);
+    - market context: one sentence per signal;
+    - 5 key findings built from the data.
+  - **Explore:** a switch between the existing Explore, Understand and Challenge contents (same element ids).
+  - **Evidence:** the existing Trust content.
+  - The address follows the view (`#overview`, `#explore/detail|signals|relationships`, `#evidence`), so a view can be bookmarked or reloaded during the demo.
+  - API, data, numbers and sentence wording are unchanged. D-85 colour blocks are kept.
+- **Tests (TDD):**
+  - 5 new UI tests, written first and seen failing: landing view with 3 cards, key findings, market context, card opens Explore, addresses open the right view.
+  - Existing tests now open `/#explore` and use the Evidence button.
+  - The page-title test was updated to the new title. It failed in the full run first; the cause was the intended title change, not a bug.
+- **Rollback plan:** restore the dashboard files from commit 7a666ca (nothing was committed before my OK).
+
 ### D-88: Explain the disabled segment filter (🔁 extends D-86)
 - **What I said:** with regretted turnover chosen, the Workforce segment filter is disabled with no explanation; add a tooltip that says why.
 - **What changed:**

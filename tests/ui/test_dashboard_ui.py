@@ -18,7 +18,8 @@ SEGMENT_DISABLED_HINT = (
 
 
 def open_dashboard(page: Page, server_url: str) -> None:
-    page.goto(server_url + "/")
+    """Open the Explore view directly by its address (D-87: Overview is the landing view)."""
+    page.goto(server_url + "/#explore")
     expect(page.locator("[data-testid=rate-tile]").first).to_be_visible()
 
 
@@ -73,6 +74,7 @@ def test_turnover_objective_disables_the_segment_filter(page: Page, server_url):
     page.select_option("#f-objective", "NEW_HIRE_6M")
     expect(page.locator("#f-segment")).to_be_enabled()
     expect(page.locator(".segment-field")).not_to_have_attribute("title", SEGMENT_DISABLED_HINT)
+    expect(page.locator("#explore-years")).to_contain_text("2025-12-31")
 
 
 def test_empty_state_for_a_slice_without_hires(page: Page, server_url):
@@ -104,7 +106,7 @@ def test_api_outage_is_shown_not_a_blank_page(page: Page, server_url):
             body='{"error": {"code": "data_not_built", "message": "run `retention run` first"}}',
         ),
     )
-    page.goto(server_url + "/")
+    page.goto(server_url + "/#explore")
     message = page.locator("#explore-message")
     expect(message).to_contain_text("No data yet")
     expect(message).to_have_attribute("role", "alert")
@@ -136,7 +138,7 @@ def test_challenge_tab_shows_tests_with_uncertainty_and_careful_wording(page: Pa
 
 def test_trust_tab_shows_sources_quality_and_sensitivity(page: Page, server_url):
     open_dashboard(page, server_url)
-    page.click("#tab-trust")
+    page.click("#nav-evidence")
     expect(page.locator("#trust-sources")).to_contain_text("CC BY 4.0")
     expect(page.locator("#trust-sources")).to_contain_text("replayed")
     expect(page.locator("#trust-reconciliation")).to_contain_text("2400 employees (reconciled)")
@@ -212,7 +214,7 @@ def test_challenge_finding_counts_the_formal_tests(page: Page, server_url):
 
 def test_trust_finding_summarises_reconciliation_and_sensitivity(page: Page, server_url):
     open_dashboard(page, server_url)
-    page.click("#tab-trust")
+    page.click("#nav-evidence")
     finding = page.locator("#trust-finding")
     expect(finding).to_contain_text("2,407 HR rows reconcile to 2,400 employees")
     expect(page.locator("#trust-meaning")).to_contain_text("No verdict changes")
@@ -264,3 +266,55 @@ def test_every_chart_has_a_table_view(page: Page, server_url):
     page.locator("#explore-content details").first.locator("summary").click()
     expect(page.locator("#trend-table tbody tr").first).to_be_visible()
     expect(page.locator("#trend-table")).to_contain_text("2021-Q1")
+
+
+# --- D-87: Overview / Explore / Evidence -----------------------------------------------------
+
+
+def test_overview_is_the_landing_view_with_three_objective_cards(page: Page, server_url):
+    page.goto(server_url + "/")
+    expect(page.locator("#view-overview")).to_be_visible()
+    expect(page.locator("#view-explore")).to_be_hidden()
+    cards = page.locator("[data-testid=overview-card]")
+    expect(cards).to_have_count(3)
+    expect(page.locator("[data-objective=NEW_HIRE_6M]")).to_contain_text("87.5%")
+    expect(page.locator("[data-objective=NEW_HIRE_6M]")).to_contain_text("Inconclusive")
+    expect(page.locator("[data-objective=SENIOR_HIRE_12M]")).to_contain_text("78.2%")
+    expect(page.locator("[data-objective=SENIOR_HIRE_12M]")).to_contain_text("Not met")
+    expect(page.locator("[data-objective=REGRETTED_TURNOVER_12M]")).to_contain_text("5.11%")
+    expect(page.locator("[data-objective=REGRETTED_TURNOVER_12M]")).to_contain_text("Met")
+
+
+def test_overview_key_findings_are_built_from_the_data(page: Page, server_url):
+    page.goto(server_url + "/")
+    findings = page.locator("#overview-findings")
+    expect(findings).to_contain_text("not met in every year from 2021 to 2024")
+    expect(findings).to_contain_text("rose from 3.30% in 2024 to 5.11% in 2025")
+    expect(findings).to_contain_text("None of the 12 formal within-country tests")
+    expect(findings).to_contain_text("2,407 HR rows reconcile to 2,400 employees")
+
+
+def test_overview_market_context_describes_each_signal(page: Page, server_url):
+    page.goto(server_url + "/")
+    market = page.locator("#overview-market")
+    expect(market).to_contain_text("Unemployment rate fell in 5 of 6 countries")
+    expect(market).to_contain_text("Inflation")
+    expect(market).to_contain_text("job vacancy rate")
+
+
+def test_an_overview_card_opens_that_objective_in_explore(page: Page, server_url):
+    page.goto(server_url + "/")
+    page.click("[data-objective=SENIOR_HIRE_12M]")
+    expect(page.locator("#view-explore")).to_be_visible()
+    expect(page.locator("#f-objective")).to_have_value("SENIOR_HIRE_12M")
+    expect(page.locator("#explore-finding")).to_contain_text("78.2%")
+    expect(page).to_have_url(re.compile(r"#explore"))
+
+
+def test_the_address_opens_the_right_view(page: Page, server_url):
+    page.goto(server_url + "/#explore/relationships")
+    expect(page.locator("#panel-challenge")).to_be_visible()
+    expect(page.locator("#tab-challenge")).to_have_attribute("aria-selected", "true")
+    page.goto(server_url + "/#evidence")
+    expect(page.locator("#panel-trust")).to_be_visible()
+    expect(page.locator("#nav-evidence")).to_have_attribute("aria-selected", "true")

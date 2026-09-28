@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Retention Signals</title>
+  <title>Asteria Workforce Intelligence</title>
   <meta name="description" content="Workforce retention objectives next to external labour-market signals (synthetic assessment data).">
   <link rel="stylesheet" href="style.css">
   <!-- Chart.js 4.4.7 (MIT licence), stored in the repo so the dashboard works offline. -->
@@ -13,20 +13,29 @@
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
+  <!-- Product header (D-87). -->
+  <div class="brand-bar">
+    <div class="brand-inner">
+      <p class="brand"><span class="brand-name">ASTERIA</span><span class="brand-divider" aria-hidden="true">|</span><span class="brand-product">Workforce Intelligence</span></p>
+      <p class="brand-asof">Data as of <span id="as-of">…</span></p>
+    </div>
+  </div>
   <header class="page-header">
     <div>
-      <h1>Retention × external signals</h1>
-      <p class="subtitle">Asteria Consumer Products (fictional) · workforce data as of <span id="as-of">…</span></p>
+      <h1>Retention &amp; Labour Market Insights</h1>
+      <p class="subtitle">Workforce outcomes, external market signals, and evidence-based context. Asteria Consumer Products is fictional; the workforce data is synthetic.</p>
     </div>
     <div id="health" class="health" role="status" aria-live="polite">Checking data…</div>
   </header>
 
-  <!-- One filter row that scopes every view below it. -->
+  <nav class="main-nav" role="tablist" aria-label="Main views">
+    <button role="tab" id="nav-overview" aria-controls="view-overview" aria-selected="true">Overview</button>
+    <button role="tab" id="nav-explore" aria-controls="view-explore" aria-selected="false" tabindex="-1">Explore</button>
+    <button role="tab" id="nav-evidence" aria-controls="view-evidence" aria-selected="false" tabindex="-1">Evidence</button>
+  </nav>
+
+  <!-- One filter row that scopes every view below it (the objective is chosen inside Explore). -->
   <section class="filters" aria-label="Filters">
-    <div class="field">
-      <label for="f-objective">Objective</label>
-      <select id="f-objective"></select>
-    </div>
     <div class="field">
       <label for="f-country">Country</label>
       <select id="f-country"></select>
@@ -80,14 +89,47 @@
     <button type="button" id="segment-clear-all" class="link-button">Clear all</button>
   </div>
 
-  <nav class="tabs" role="tablist" aria-label="Dashboard views">
-    <button role="tab" id="tab-explore" aria-controls="panel-explore" aria-selected="true">Explore</button>
-    <button role="tab" id="tab-understand" aria-controls="panel-understand" aria-selected="false" tabindex="-1">Understand</button>
-    <button role="tab" id="tab-challenge" aria-controls="panel-challenge" aria-selected="false" tabindex="-1">Challenge</button>
-    <button role="tab" id="tab-trust" aria-controls="panel-trust" aria-selected="false" tabindex="-1">Trust</button>
-  </nav>
-
   <main id="main">
+    <!-- OVERVIEW: the decision view (D-87) -->
+    <section id="view-overview" role="tabpanel" aria-labelledby="nav-overview" class="view">
+      <section id="panel-overview" class="panel">
+        <div id="overview-message" class="message" hidden></div>
+        <h2 class="section-title">Retention objectives</h2>
+        <p class="help">Each card is the whole 2021–2025 result for the filters above (turnover: the latest 12 months). Select a card to explore it.</p>
+        <div id="overview-cards" class="overview-cards"></div>
+        <div class="overview-grid">
+          <figure class="chart-card">
+            <figcaption>Retention trend by hire year</figcaption>
+            <p class="help">New-hire and senior-hire retention per hire year, each with its dashed target line.</p>
+            <div class="chart-box"><canvas id="overview-trend-chart" role="img" aria-label="Retention by hire year for the two hire objectives"></canvas></div>
+            <details><summary>Show the numbers as a table</summary><div id="overview-trend-table" class="table-wrap"></div></details>
+          </figure>
+          <section class="market-card" aria-labelledby="market-title">
+            <h3 id="market-title">Market context</h3>
+            <p class="help">How each official signal moved over the selected years.</p>
+            <ul id="overview-market" class="market-list"></ul>
+          </section>
+        </div>
+        <div class="finding">
+          <p class="finding-kicker">Key findings</p>
+          <ul id="overview-findings" class="findings-list"></ul>
+        </div>
+      </section>
+    </section>
+
+    <!-- EXPLORE: detailed analysis; a switch chooses one of three sub-views -->
+    <section id="view-explore" role="tabpanel" aria-labelledby="nav-explore" class="view" hidden>
+      <div class="explore-head">
+        <div class="field">
+          <label for="f-objective">Objective</label>
+          <select id="f-objective"></select>
+        </div>
+        <nav class="tabs subnav" role="tablist" aria-label="Explore views">
+          <button role="tab" id="tab-explore" aria-controls="panel-explore" aria-selected="true">Objective detail</button>
+          <button role="tab" id="tab-understand" aria-controls="panel-understand" aria-selected="false" tabindex="-1">Market signals</button>
+          <button role="tab" id="tab-challenge" aria-controls="panel-challenge" aria-selected="false" tabindex="-1">Relationships</button>
+        </nav>
+      </div>
     <!-- EXPLORE: the selected objective for the selected slice -->
     <section id="panel-explore" role="tabpanel" aria-labelledby="tab-explore" class="panel">
       <h2 id="explore-title">Explore</h2>
@@ -126,7 +168,7 @@
 
     <!-- UNDERSTAND: objective status next to external signals -->
     <section id="panel-understand" role="tabpanel" aria-labelledby="tab-understand" class="panel" hidden>
-      <h2>Understand: objective status and external signals</h2>
+      <h2>Market signals: objective status next to the labour market</h2>
       <div id="understand-message" class="message" hidden></div>
       <div class="finding" aria-live="polite">
         <p class="finding-kicker">What this shows</p>
@@ -150,7 +192,7 @@
       </figure>
       <figure class="chart-card">
         <figcaption id="u-indicator-caption">External signal</figcaption>
-        <p class="help">The official statistic for the same years, one line per country with a fixed colour. Compare the shapes by eye; the Challenge tab tests whether they really move together.</p>
+        <p class="help">The official statistic for the same years, one line per country with a fixed colour. Compare the shapes by eye; Relationships tests whether they really move together.</p>
         <div class="chart-box"><canvas id="u-indicator-chart" role="img" aria-label="External signal chart"></canvas></div>
         <details><summary>Show the numbers as a table</summary><div id="u-indicator-table" class="table-wrap"></div></details>
       </figure>
@@ -159,14 +201,14 @@
       <ul class="notes">
         <li>Two separate charts on the same years, never one chart with two y-axes.</li>
         <li>Each signal is drawn at its own frequency. Annual GDP is one value per year (drawn as steps), never shown as new monthly or quarterly values.</li>
-        <li>This view shows values by their own period. The association tests (Challenge) use only values already published on each cohort's as-of date.</li>
+        <li>This view shows values by their own period. The association tests (Relationships) use only values already published on each cohort's as-of date.</li>
       </ul>
       </div>
     </section>
 
     <!-- CHALLENGE: relationships with n, uncertainty and caveats -->
     <section id="panel-challenge" role="tabpanel" aria-labelledby="tab-challenge" class="panel" hidden>
-      <h2>Challenge: do external signals move with retention?</h2>
+      <h2>Relationships: do external signals move with retention?</h2>
       <p id="challenge-label" class="analysis-label"></p>
       <div id="challenge-message" class="message" hidden></div>
       <div class="finding" aria-live="polite">
@@ -217,9 +259,12 @@
       </div>
     </section>
 
-    <!-- TRUST: freshness, coverage, exclusions, attribution, methodology -->
-    <section id="panel-trust" role="tabpanel" aria-labelledby="tab-trust" class="panel" hidden>
-      <h2>Trust: where the numbers come from</h2>
+    </section>
+
+    <!-- EVIDENCE: freshness, coverage, exclusions, sensitivity, attribution, methodology -->
+    <section id="view-evidence" role="tabpanel" aria-labelledby="nav-evidence" class="view" hidden>
+    <section id="panel-trust" class="panel">
+      <h2>Evidence: where the numbers come from</h2>
       <div id="trust-message" class="message" hidden></div>
       <div class="finding" aria-live="polite">
         <p class="finding-kicker">What this shows</p>
@@ -259,6 +304,7 @@
         <p><strong>Association:</strong> Spearman rank correlation within each country (formal, Holm-corrected, 4 tests per objective); pooled and time-adjusted views are descriptive. Bootstrap intervals are exploratory because rows are not independent.</p>
         <p>API documentation: <a href="/docs">/docs</a>.</p>
       </div>
+    </section>
     </section>
   </main>
 

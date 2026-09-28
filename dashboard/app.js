@@ -16,13 +16,16 @@
 // State
 // ---------------------------------------------------------------------------------------------
 
-const TABS = ["explore", "understand", "challenge", "trust"];
+const VIEWS = ["overview", "explore", "evidence"]; // main navigation (D-87)
+const TABS = ["explore", "understand", "challenge"]; // the Explore switch: detail, signals, relationships
+const TAB_ADDRESS = { explore: "detail", understand: "signals", challenge: "relationships" };
 const TURNOVER = "REGRETTED_TURNOVER_12M";
 const SEGMENT_DISABLED_HINT = "Segments apply to hire cohorts only. Regretted turnover is measured for all employees.";
 const COUNTRIES = ["GR", "RO", "PL", "IT", "IE", "BG"];
 
 const state = {
-  tab: "explore",
+  view: "overview", // D-87
+  tab: "explore", // Explore sub-view
   filters: null, // the /api/filters response
   objective: "NEW_HIRE_6M",
   country: "ALL",
@@ -154,6 +157,9 @@ function setFinding(tab, sentence, status, meaning) {
 }
 
 function clearFinding(tab) {
+  if (!byId(tab + "-finding")) {
+    return; // the Overview has a findings list instead
+  }
   clear(byId(tab + "-finding"));
   clear(byId(tab + "-meaning"));
 }
@@ -775,55 +781,125 @@ function commonParams() {
   };
 }
 
-function selectTab(tab, moveFocus) {
-  state.tab = tab;
-  for (const name of TABS) {
-    const button = byId("tab-" + name);
-    const selected = name === tab;
+/** Mark one button of a tab list as selected and show only its panel. */
+function showSelected(names, prefix, panelPrefix, selectedName, moveFocus) {
+  for (const name of names) {
+    const button = byId(prefix + name);
+    const selected = name === selectedName;
     button.setAttribute("aria-selected", selected ? "true" : "false");
     button.tabIndex = selected ? 0 : -1;
-    byId("panel-" + name).hidden = !selected;
+    byId(panelPrefix + name).hidden = !selected;
     if (selected && moveFocus) {
       button.focus();
     }
   }
+}
+
+/** The address of the current view, e.g. "#explore/relationships" (bookmarkable, survives a reload). */
+function writeAddress() {
+  let address = "#" + state.view;
+  if (state.view === "explore") {
+    address += "/" + TAB_ADDRESS[state.tab];
+  }
+  if (window.location.hash !== address) {
+    history.replaceState(null, "", address);
+  }
+}
+
+/** Read the address into state.view / state.tab. Unknown addresses fall back to the Overview. */
+function readAddress() {
+  const parts = window.location.hash.replace("#", "").split("/");
+  state.view = VIEWS.indexOf(parts[0]) >= 0 ? parts[0] : "overview";
+  if (state.view === "explore") {
+    state.tab = "explore";
+    for (const tab of TABS) {
+      if (TAB_ADDRESS[tab] === parts[1]) {
+        state.tab = tab;
+      }
+    }
+  }
+}
+
+/** Show the current view and Explore sub-view, update the address, load the data. */
+function showCurrent(moveFocusTo) {
+  showSelected(VIEWS, "nav-", "view-", state.view, moveFocusTo === "view");
+  showSelected(TABS, "tab-", "panel-", state.tab, moveFocusTo === "tab");
+  writeAddress();
   loadCurrentTab();
 }
 
-function setupTabs() {
-  for (const name of TABS) {
-    const button = byId("tab-" + name);
+function selectView(view, moveFocus) {
+  state.view = view;
+  showCurrent(moveFocus ? "view" : null);
+}
+
+function selectTab(tab, moveFocus) {
+  state.view = "explore";
+  state.tab = tab;
+  showCurrent(moveFocus ? "tab" : null);
+}
+
+/** Click and arrow-key handling for one tab list (WAI-ARIA tabs pattern). */
+function setupTabList(names, prefix, select) {
+  for (const name of names) {
+    const button = byId(prefix + name);
     button.addEventListener("click", function () {
-      selectTab(name, false);
+      select(name, false);
     });
     button.addEventListener("keydown", function (event) {
-      // Arrow keys move between tabs (WAI-ARIA tabs pattern).
-      const index = TABS.indexOf(name);
+      const index = names.indexOf(name);
       if (event.key === "ArrowRight") {
-        selectTab(TABS[(index + 1) % TABS.length], true);
+        select(names[(index + 1) % names.length], true);
         event.preventDefault();
       } else if (event.key === "ArrowLeft") {
-        selectTab(TABS[(index + TABS.length - 1) % TABS.length], true);
+        select(names[(index + names.length - 1) % names.length], true);
         event.preventDefault();
       }
     });
   }
 }
 
+function setupTabs() {
+  setupTabList(VIEWS, "nav-", selectView);
+  setupTabList(TABS, "tab-", selectTab);
+  window.addEventListener("hashchange", function () {
+    readAddress();
+    showCurrent(null);
+  });
+}
+
+/** The panel whose data is on screen: "overview", "trust" (Evidence) or an Explore sub-view. */
+function currentPanel() {
+  if (state.view === "overview") {
+    return "overview";
+  }
+  if (state.view === "evidence") {
+    return "trust";
+  }
+  return state.tab;
+}
+
 async function loadCurrentTab() {
-  const loaders = { explore: loadExplore, understand: loadUnderstand, challenge: loadChallenge, trust: loadTrust };
-  const panel = byId("panel-" + state.tab);
+  const loaders = {
+    overview: loadOverview,
+    explore: loadExplore,
+    understand: loadUnderstand,
+    challenge: loadChallenge,
+    trust: loadTrust,
+  };
+  const name = currentPanel();
+  const panel = byId("panel-" + name);
   const myLoad = ++loadCounter;
   panel.classList.add("loading");
   panel.setAttribute("aria-busy", "true");
-  hideMessage(state.tab);
+  hideMessage(name);
   try {
-    await loaders[state.tab](myLoad);
+    await loaders[name](myLoad);
   } catch (error) {
     if (myLoad === loadCounter) {
-      clearFinding(state.tab);
-      showMessage(state.tab, "error", errorText(error));
-      if (state.tab === "explore") {
+      clearFinding(name);
+      showMessage(name, "error", errorText(error));
+      if (name === "explore") {
         byId("explore-content").hidden = true;
       }
     }
@@ -856,6 +932,235 @@ async function loadHealth() {
     box.textContent = "API not reachable: " + error.message;
     box.setAttribute("data-health", "error");
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// OVERVIEW (D-87): three objective cards, one trend, market context, key findings.
+// Everything is built from the same API answers the other views use.
+// ---------------------------------------------------------------------------------------------
+
+const OVERVIEW_SIGNALS = ["unemployment", "inflation", "job_vacancy"];
+
+async function loadOverview(myLoad) {
+  const country = state.country;
+  const segment = segmentList();
+  const hireVariant = state.variant === "unknown_as_regretted" ? "primary" : state.variant;
+  const hireParams = { country: country, variant: hireVariant, segment: segment };
+  const years = { year_from: state.yearFrom, year_to: state.yearTo };
+
+  // 1. One request per piece of data, all at once.
+  const requests = [
+    fetchJson("/api/retention/cohorts", Object.assign({ objective: "NEW_HIRE_6M", grain: "period" }, hireParams)),
+    fetchJson("/api/retention/cohorts", Object.assign({ objective: "SENIOR_HIRE_12M", grain: "period" }, hireParams)),
+    fetchJson("/api/retention/cohorts", Object.assign({ objective: "NEW_HIRE_6M", grain: "year" }, hireParams, years)),
+    fetchJson("/api/retention/cohorts", Object.assign({ objective: "SENIOR_HIRE_12M", grain: "year" }, hireParams, years)),
+    fetchJson("/api/retention/turnover", { country: country, variant: state.variant, year_end_only: true }),
+    fetchJson("/api/association"),
+    fetchJson("/api/quality"),
+  ];
+  for (const indicator of OVERVIEW_SIGNALS) {
+    requests.push(fetchJson("/api/indicators", Object.assign({ indicator: indicator, country: country === "ALL" ? null : country }, years)));
+  }
+  const answers = await Promise.all(requests);
+  if (myLoad !== loadCounter) {
+    return;
+  }
+  const newHire = answers[0].rows[0];
+  const senior = answers[1].rows[0];
+  const newHireYears = answers[2].rows;
+  const seniorYears = answers[3].rows;
+  const decembers = answers[4].rows;
+  const lastDecember = decembers.length > 0 ? decembers[decembers.length - 1] : null;
+
+  // 2. Cards.
+  const cards = byId("overview-cards");
+  clear(cards);
+  cards.appendChild(overviewCard("NEW_HIRE_6M", "New-hire retention, 6 months", newHire, 1));
+  cards.appendChild(overviewCard("SENIOR_HIRE_12M", "Senior-hire retention, 12 months", senior, 1));
+  cards.appendChild(overviewCard(TURNOVER, "Regretted turnover, last 12 months", lastDecember, 2));
+
+  // 3. Trend by hire year for the two hire objectives (both are rates, so one axis).
+  drawOverviewTrend(newHireYears, seniorYears);
+
+  // 4. Market context: one sentence per signal.
+  const market = byId("overview-market");
+  clear(market);
+  for (let index = 0; index < OVERVIEW_SIGNALS.length; index++) {
+    const indicator = OVERVIEW_SIGNALS[index];
+    const item = el("li");
+    item.appendChild(el("strong", indicatorLabel(indicator)));
+    const sentence = signalMovement(answers[7 + index].rows, indicator, country, false);
+    item.appendChild(el("span", sentence || "No values in the selected years.", "market-text"));
+    market.appendChild(item);
+  }
+
+  // 5. Key findings.
+  const findings = byId("overview-findings");
+  clear(findings);
+  const lines = [
+    hireFinding("SENIOR_HIRE_12M", senior, seniorYears),
+    hireFinding("NEW_HIRE_6M", newHire, newHireYears),
+    turnoverFinding(decembers),
+    associationFinding(answers[5]),
+    qualityFinding(answers[6].report.hr),
+  ];
+  for (const line of lines) {
+    if (line) {
+      findings.appendChild(el("li", line));
+    }
+  }
+}
+
+/** A card that opens its objective in Explore. row = the whole-period (or latest December) row. */
+function overviewCard(objectiveId, title, row, digits) {
+  const meta = objectiveMeta(objectiveId);
+  const card = el("button", null, "overview-card");
+  card.type = "button";
+  card.setAttribute("data-testid", "overview-card");
+  card.setAttribute("data-objective", objectiveId);
+  card.appendChild(el("span", title, "card-title"));
+  if (!row || row.n === 0) {
+    card.appendChild(el("span", "–", "card-value"));
+    card.appendChild(statusBadge(null));
+    card.appendChild(el("span", "No mature hires match these filters.", "card-detail"));
+  } else {
+    card.appendChild(el("span", pct(row.rate, digits), "card-value"));
+    card.appendChild(statusBadge(row.status));
+    const n = row.n !== undefined ? row.n : row.avg_headcount;
+    card.appendChild(el("span", "95% CI " + pct(row.ci_low, digits) + "–" + pct(row.ci_high, digits) +
+      ", n = " + count(Math.round(n)) + ". " + targetText(meta) + ".", "card-detail"));
+  }
+  card.appendChild(el("span", "Explore this objective", "card-link"));
+  card.addEventListener("click", function () {
+    openObjective(objectiveId);
+  });
+  return card;
+}
+
+/** Switch the Explore objective filter and open Objective detail. */
+function openObjective(objectiveId) {
+  byId("f-objective").value = objectiveId;
+  readFilters();
+  state.view = "explore";
+  state.tab = "explore";
+  showCurrent(null);
+}
+
+function drawOverviewTrend(newHireYears, seniorYears) {
+  const series = [
+    { id: "NEW_HIRE_6M", label: "New-hire 6 months", rows: newHireYears, color: cssVar("--accent") },
+    { id: "SENIOR_HIRE_12M", label: "Senior-hire 12 months", rows: seniorYears, color: cssVar("--c-RO") },
+  ];
+  const range = yearRange();
+  const datasets = [];
+  const tableRows = [];
+  for (const item of series) {
+    const meta = objectiveMeta(item.id);
+    const data = [];
+    for (const row of item.rows) {
+      if (row.rate === null) {
+        continue; // hires not yet measurable
+      }
+      data.push({ x: xFromPeriod(row.period), y: row.rate, row: row });
+      tableRows.push(Object.assign({ objective: item.label }, row));
+    }
+    datasets.push({ label: item.label, data: data, borderColor: item.color, backgroundColor: item.color, borderWidth: 2, pointRadius: 4 });
+    datasets.push({
+      label: item.label + " target",
+      data: [{ x: range.min, y: meta.target }, { x: range.max, y: meta.target }],
+      borderColor: item.color,
+      borderDash: [6, 4],
+      borderWidth: 1.5,
+      pointRadius: 0,
+    });
+  }
+  const options = baseOptions("Retained", function (value) {
+    return pct(value, 0);
+  }, range);
+  options.plugins.tooltip.callbacks = {
+    title: function (items) {
+      return items.length && items[0].raw.row ? items[0].raw.row.period : "";
+    },
+    label: function (item) {
+      if (!item.raw.row) {
+        return item.dataset.label + " " + pct(item.raw.y, 0);
+      }
+      const row = item.raw.row;
+      return item.dataset.label + ": " + pct(row.rate, 1) + " (95% CI " + pct(row.ci_low, 1) + "–" +
+        pct(row.ci_high, 1) + ", n=" + row.n + ")";
+    },
+  };
+  drawChart("overview-trend-chart", { type: "line", data: { datasets: datasets }, options: options });
+  buildTable(byId("overview-trend-table"), [
+    { key: "objective", label: "Objective" },
+    { key: "period", label: "Hire year" },
+    { key: "n", label: "Mature hires (n)", numeric: true },
+    { label: "Rate", numeric: true, format: (row) => pct(row.rate, 1) },
+    { label: "95% interval", numeric: true, format: (row) => pct(row.ci_low, 1) + "–" + pct(row.ci_high, 1) },
+    { label: "Status", format: (row) => statusBadge(row.status) },
+  ], tableRows);
+}
+
+/** Example: "Senior-hire twelve-month retention is not met: 78.2% against the 90% target; not met in every year from 2021 to 2024." */
+function hireFinding(objectiveId, whole, years) {
+  const meta = objectiveMeta(objectiveId);
+  if (!whole || whole.n === 0) {
+    return meta.name + ": no mature hires match these filters.";
+  }
+  const words = { met: "met", not_met: "not met", inconclusive: "inconclusive (the 95% range includes the target)" };
+  let line = meta.name + " is " + (words[whole.status] || "without a verdict") + ": " + pct(whole.rate, 1) +
+    " against the " + targetPct(meta) + " target";
+  const pattern = yearPattern(years.filter((row) => row.n > 0), "period");
+  if (pattern) {
+    line += "; " + lowerFirst(pattern);
+  } else {
+    line += ".";
+  }
+  return line;
+}
+
+/** Example: "Regretted turnover is met (5.11% against at most 7.5%), but it rose from 3.30% in 2024 to 5.11% in 2025." */
+function turnoverFinding(decembers) {
+  if (decembers.length === 0) {
+    return "";
+  }
+  const meta = objectiveMeta(TURNOVER);
+  const last = decembers[decembers.length - 1];
+  const words = { met: "met", not_met: "not met", inconclusive: "inconclusive" };
+  let line = "Regretted turnover is " + (words[last.status] || "without a verdict") + " (" + pct(last.rate, 2) +
+    " against at most " + targetPct(meta) + ")";
+  if (decembers.length >= 2) {
+    const before = decembers[decembers.length - 2];
+    if (last.rate > before.rate) {
+      line += ", but it rose from " + pct(before.rate, 2) + " in " + before.month_end.slice(0, 4) + " to " +
+        pct(last.rate, 2) + " in " + last.month_end.slice(0, 4);
+    } else if (last.rate < before.rate) {
+      line += ", and it fell from " + pct(before.rate, 2) + " in " + before.month_end.slice(0, 4) + " to " +
+        pct(last.rate, 2) + " in " + last.month_end.slice(0, 4);
+    }
+  }
+  return line + ".";
+}
+
+/** Counts the formal tests of all objectives with a clear association (D-63 wording). */
+function associationFinding(answer) {
+  const formal = answer.rows.filter((row) => row.is_formal);
+  const clearRows = formal.filter((row) => row.p_holm !== null && row.p_holm < answer.alpha);
+  if (clearRows.length === 0) {
+    return "None of the " + formal.length + " formal within-country tests shows a clear association between " +
+      "the external signals and the three objectives. This is associative, not causal, and small samples limit inference.";
+  }
+  return clearRows.length + " of " + formal.length + " formal within-country tests show an association " +
+    "(associative, not causal); see Relationships in Explore.";
+}
+
+/** Example: "2,407 HR rows reconcile to 2,400 employees; 12 uncertain exits are quarantined and 10 records excluded." */
+function qualityFinding(hr) {
+  const rec = hr.reconciliation;
+  const statuses = hr.metric_status;
+  return count(rec.rows_in_file) + " HR rows " + (rec.balanced ? "reconcile" : "do NOT reconcile") + " to " +
+    count(rec.employees_out) + " employees; " + count(statuses.QUARANTINED || 0) + " uncertain exits are quarantined and " +
+    count(statuses.EXCLUDED || 0) + " records excluded (details in Evidence).";
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1223,7 +1528,7 @@ function understandSentence(newHire, senior, lastDecember, country) {
  * How the selected signal moved between the first and last period shown.
  * Example: "Unemployment rate fell in 5 of 6 countries between 2021-01 and 2025-12; it rose in Romania."
  */
-function signalMovement(rows, indicator, country) {
+function signalMovement(rows, indicator, country, withClosing = true) {
   const names = {
     unemployment: "Unemployment rate",
     inflation: "Inflation",
@@ -1231,7 +1536,9 @@ function signalMovement(rows, indicator, country) {
     gdp_growth: "GDP growth",
   };
   const name = names[indicator] || indicatorLabel(indicator);
-  const closing = " Moving at the same time does not mean one drives the other; tab 3 (Challenge) tests the relationship.";
+  const closing = withClosing
+    ? " Moving at the same time does not mean one drives the other; Relationships (in Explore) tests this."
+    : "";
   if (rows.length === 0) {
     return "";
   }
@@ -1777,7 +2084,8 @@ async function init() {
     byId(id).addEventListener("change", loadCurrentTab);
   }
   readFilters();
-  loadCurrentTab();
+  readAddress();
+  showCurrent(null);
 }
 
 document.addEventListener("DOMContentLoaded", init);
