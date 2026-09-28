@@ -49,14 +49,17 @@ def compute_retention_cohorts(
     hire_outcomes: pd.DataFrame,
     objectives: pd.DataFrame,
     settings: Settings,
+    whole_period: str | None = None,
 ) -> pd.DataFrame:
     """Count per objective x variant x grain x scope x period, then add rate, CI, target and status.
 
-    The same function serves the API later: it can pass a filtered hire_outcomes table (D-77).
+    The same function serves the API later: it can pass a filtered hire_outcomes table (D-77),
+    and a `whole_period` label (e.g. "2022-2023") when it has kept only some hire years (D-90).
     """
     # 1. Counting in SQL.
     register_table(con, "hire_outcomes", hire_outcomes)
-    cohorts = run_sql(con, "retention_cohorts", {"period_label": period_label(settings)})
+    label = whole_period if whole_period is not None else period_label(settings)
+    cohorts = run_sql(con, "retention_cohorts", {"period_label": label})
 
     # 2. Rates, intervals, targets and status in Python.
     targets = _targets(objectives)

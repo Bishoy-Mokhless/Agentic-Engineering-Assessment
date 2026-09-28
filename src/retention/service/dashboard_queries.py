@@ -189,6 +189,24 @@ def _in_years(year: int | None, year_from: int | None, year_to: int | None) -> b
     return True
 
 
+def _selected_years(
+    settings: Settings, grain: str, year_from: int | None, year_to: int | None
+) -> tuple[int, int] | None:
+    """(first, last) hire year when a whole-period row must cover fewer years than 2021-2025 (D-90).
+
+    None means the precomputed whole-period row is right. Other grains are simply filtered.
+    """
+    if grain != "period":
+        return None
+    full_first = settings.metrics.report_start.year
+    full_last = settings.as_of_date.year
+    first = max(year_from, full_first) if year_from is not None else full_first
+    last = min(year_to, full_last) if year_to is not None else full_last
+    if first == full_first and last == full_last:
+        return None
+    return first, last
+
+
 # ---------------------------------------------------------------------------------------------
 # Health and filters
 # ---------------------------------------------------------------------------------------------
@@ -313,6 +331,8 @@ def cohorts(
 
     Without a segment: the precomputed table. With one or more segments (combined with AND, D-86):
     recomputed on request from the hire-level table with exactly the same SQL and rules (D-77).
+    A whole-period row for fewer years than 2021-2025 is recomputed the same way, for the selected
+    hire years only (D-90).
     """
     meta = objective_meta(store, settings, objective)
     if objective not in HIRE_OBJECTIVES:
@@ -320,14 +340,15 @@ def cohorts(
     check_country(settings, country)
     check_years(year_from, year_to)
     parsed_segments = parse_segments(segment)
+    selected_years = _selected_years(settings, grain, year_from, year_to)
 
-    # 1. Get the table: precomputed, or recomputed for the chosen segments.
-    if len(parsed_segments) == 0:
+    # 1. Get the table: precomputed, or recomputed for the chosen segments and/or years.
+    if len(parsed_segments) == 0 and selected_years is None:
         table = store.table("analytical", "retention_cohorts")
         computed = "precomputed by the pipeline"
     else:
         all_hires = store.table("analytical", "hire_outcomes")
-        hires = all_hires
+        hires = all_hires[all_hires["objective_id"] == objective]  # only the rows this answer needs
         descriptions = []
         for dimension, value in parsed_segments:
             known_values = sorted(all_hires[dimension].unique().tolist())
@@ -335,11 +356,18 @@ def cohorts(
                 raise NotFoundError(f"unknown {dimension} value '{value}' (known: {', '.join(known_values)})")
             hires = hires[hires[dimension] == value]
             descriptions.append(f"{dimension} = {value}")
+        whole_period = None
+        if selected_years is not None:
+            first, last = selected_years
+            hire_years = hires["hire_year"].astype(int)  # stored as text, e.g. "2023"
+            hires = hires[(hire_years >= first) & (hire_years <= last)]
+            whole_period = str(first) if first == last else f"{first}-{last}"
+            descriptions.append(f"hire years {first}-{last}")
         objectives = store.table("canonical", "objectives")
         con = duckdb.connect()
-        table = compute_retention_cohorts(con, hires, objectives, settings)
+        table = compute_retention_cohorts(con, hires, objectives, settings, whole_period)
         con.close()
-        computed = f"computed on request for {' and '.join(descriptions)} (D-77, D-86)"
+        computed = f"computed on request for {' and '.join(descriptions)} (D-77, D-86, D-90)"
 
     # 2. Filter to the requested slice.
     scope = "company" if country == COMPANY else "country"
@@ -379,6 +407,87 @@ def cohorts(
         "computed": computed,
         "rows": records(table),
         "notes": notes,
+    }
+
+
+# Job family is left out: too many small groups.
+STABILITY_DIMENSIONS = ["employment_type", "career_level", "business_unit"]
+
+
+def _agreement(overall_status: str | None, status: str | None) -> str:
+    """How one segment's verdict compares with the verdict for everyone in the slice (D-92)."""
+    if status is None:
+        return "no_data"
+    if status == overall_status:
+        return "same"
+    if status == "inconclusive":
+        return "less_certain"  # usually a smaller group with a wider interval
+    if overall_status == "inconclusive":
+        return "clearer"
+    return "opposite"  # met in the segment, not met overall, or the other way round
+
+
+def segment_stability(
+    store: CuratedStore,
+    settings: Settings,
+    objective: str,
+    country: str,
+    variant: str,
+    segment: list[str] | None,
+    year_from: int | None,
+    year_to: int | None,
+) -> dict:
+    """The whole-period verdict for each value of each segment field, next to the overall verdict (D-92).
+
+    Every row comes from cohorts(), so it uses the same SQL, years (D-90) and segment rules (D-77, D-86).
+    Fields already filtered, and fields with only one value for this objective, are skipped.
+    """
+    base = cohorts(store, settings, objective, country, "period", variant, segment, year_from, year_to)
+    overall = base["rows"][0] if base["rows"] else None
+    overall_status = overall["status"] if overall else None
+    filtered = [pair[0] for pair in parse_segments(segment)]
+
+    hires = store.table("analytical", "hire_outcomes")
+    hires = hires[hires["objective_id"] == objective]
+    dimensions = []
+    rows = []
+    for dimension in STABILITY_DIMENSIONS:
+        values = sorted(hires[dimension].dropna().unique().tolist())
+        if dimension in filtered or len(values) < 2:
+            continue
+        dimensions.append(dimension)
+        for value in values:
+            chosen = list(segment or []) + [f"{dimension}:{value}"]
+            answer = cohorts(
+                store, settings, objective, country, "period", variant, chosen, year_from, year_to
+            )
+            row = answer["rows"][0] if answer["rows"] else None
+            status = row["status"] if row and row["n"] > 0 else None
+            rows.append(
+                {
+                    "dimension": dimension,
+                    "value": value,
+                    "n": row["n"] if row else 0,
+                    "retained": row["retained"] if row else 0,
+                    "rate": row["rate"] if row else None,
+                    "ci_low": row["ci_low"] if row else None,
+                    "ci_high": row["ci_high"] if row else None,
+                    "status": status,
+                    "small_sample": row["small_sample"] if row else None,
+                    "agreement": _agreement(overall_status, status),
+                }
+            )
+
+    counts = {}
+    for row in rows:
+        counts[row["agreement"]] = counts.get(row["agreement"], 0) + 1
+    return {
+        "objective": base["objective"],
+        "filters": base["filters"],
+        "overall": overall,
+        "dimensions": dimensions,
+        "rows": rows,
+        "counts": counts,
     }
 
 

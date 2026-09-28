@@ -89,13 +89,16 @@
     <button type="button" id="segment-clear-all" class="link-button">Clear all</button>
   </div>
 
+  <!-- Why some filters are disabled on this view (D-91). -->
+  <p id="filter-scope-note" class="scope-note" role="note" hidden></p>
+
   <main id="main">
     <!-- OVERVIEW: the decision view (D-87) -->
     <section id="view-overview" role="tabpanel" aria-labelledby="nav-overview" class="view">
       <section id="panel-overview" class="panel">
         <div id="overview-message" class="message" hidden></div>
         <h2 class="section-title">Retention objectives</h2>
-        <p class="help">Each card is the whole 2021–2025 result for the filters above (turnover: the latest 12 months). Select a card to explore it.</p>
+        <p id="overview-help" class="help">Each card is the result for the filters above. Select a card to explore it.</p>
         <div id="overview-cards" class="overview-cards"></div>
         <div class="overview-grid">
           <figure class="chart-card">
@@ -140,12 +143,20 @@
           <p class="finding-kicker">What this shows</p>
           <p id="explore-finding" class="finding-text"></p>
           <p id="explore-meaning" class="finding-meaning"></p>
+          <p id="explore-next" class="finding-meaning"></p>
         </div>
         <div id="explore-tiles" class="tiles"></div>
         <div class="table-band">
           <h3>Status by year</h3>
-          <p class="help">Each row is one year. The verdict comes from the 95% interval: <em>met</em> or <em>not met</em> only when the whole interval is on one side of the target, otherwise <em>inconclusive</em>. "Not yet measurable" hires joined too recently to finish their window.</p>
+          <p class="help">Each row is one year. The verdict comes from the 95% interval: <em>met</em> or <em>not met</em> only when the whole interval is on one side of the target, otherwise <em>inconclusive</em>.<span id="years-help-hires"> "Not yet measurable" hires joined too recently to finish their window.</span></p>
           <div id="explore-years" class="table-wrap"></div>
+        </div>
+        <!-- Segment stability (D-92): does the verdict hold for each group? -->
+        <div class="table-band" id="segments-card">
+          <h3>Does the verdict hold across segments?</h3>
+          <p class="help">The same objective for each employment type, career level and business unit, with the same country, years and data treatment. Descriptive only: with many groups, one group that differs can be chance, and small groups have wide intervals.</p>
+          <p id="segments-finding" class="segments-finding"></p>
+          <div id="explore-segments" class="table-wrap"></div>
         </div>
         <figure class="chart-card">
           <figcaption id="trend-caption">Trend</figcaption>
@@ -176,7 +187,7 @@
         <p id="understand-meaning" class="finding-meaning"></p>
       </div>
       <h3>All three objectives for <span id="understand-country"></span></h3>
-      <p class="help">The whole 2021–2025 result for each objective (turnover: the latest 12 months), with its verdict.</p>
+      <p id="understand-help" class="help">The result for each objective, with its verdict.</p>
       <div id="understand-tiles" class="tiles"></div>
       <div class="section-controls">
         <div class="field">
@@ -286,6 +297,12 @@
       <p id="trust-principle" class="principle"></p>
       <h3>Sensitivity: does the data treatment change the verdict?</h3>
       <p class="help">The same objective recomputed with the uncertain records treated differently. If the verdict does not change, the conclusion does not depend on those records.</p>
+      <div class="section-controls">
+        <div class="field">
+          <label for="e-objective">Objective</label>
+          <select id="e-objective"></select>
+        </div>
+      </div>
       <p id="trust-sensitivity-summary"></p>
       <div class="table-band">
         <div id="trust-sensitivity" class="table-wrap"></div>
@@ -298,7 +315,7 @@
       <div class="methodology">
         <p><strong>New-hire and senior retention:</strong> share of hires still employed 6 (or 12) calendar months after hire; any exit on or before that date counts as not retained. Hires whose window ends after 2025-12-31 are not yet measurable and are counted separately. Senior = Senior Leader.</p>
         <p><strong>Regretted turnover:</strong> confirmed regretted exits in the trailing 12 months divided by the average of 13 month-end headcounts.</p>
-        <p><strong>Uncertainty:</strong> 95% Wilson intervals. A status is <em>met</em> or <em>not met</em> only when the whole interval is on one side of the target, otherwise <em>inconclusive</em>. Verdicts are given per year and for 2021–2025; quarters and months are trends.</p>
+        <p><strong>Uncertainty:</strong> 95% Wilson intervals. A status is <em>met</em> or <em>not met</em> only when the whole interval is on one side of the target, otherwise <em>inconclusive</em>. Verdicts are given per year and for the selected years together; quarters and months are trends.</p>
         <p><strong>Unverified exits</strong> are quarantined from the primary analysis because their termination classification is incomplete; a sensitivity analysis assesses the impact of treating them as valid exits.</p>
         <p><strong>External signals:</strong> joined as of the start of each cohort period using conservative fixed publication lags (monthly +2, quarterly +3, annual +7 months). These are approximations based on observed availability, not exact release dates, and today's APIs return revised values.</p>
         <p><strong>Association:</strong> Spearman rank correlation within each country (formal, Holm-corrected, 4 tests per objective); pooled and time-adjusted views are descriptive. Bootstrap intervals are exploratory because rows are not independent.</p>

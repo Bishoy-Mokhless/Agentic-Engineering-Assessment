@@ -35,6 +35,23 @@ def cohorts(
     )
 
 
+@router.get("/segments")
+def segments(
+    objective: str = "NEW_HIRE_6M",
+    country: str = "ALL",
+    variant: Literal["primary", "with_unverified_exits"] = "primary",
+    segment: list[str] | None = Query(default=None, description="segments already chosen (D-86)"),
+    year_from: int | None = year_query("first year to include, e.g. 2022"),
+    year_to: int | None = year_query("last year to include, e.g. 2024"),
+    store: CuratedStore = Depends(get_store),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Segment stability (D-92): the verdict for each employment type, career level and business unit."""
+    return dashboard_queries.segment_stability(
+        store, settings, objective, country, variant, segment, year_from, year_to
+    )
+
+
 @router.get("/turnover")
 def turnover(
     country: str = "ALL",

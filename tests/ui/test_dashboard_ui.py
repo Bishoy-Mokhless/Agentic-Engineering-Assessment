@@ -318,3 +318,145 @@ def test_the_address_opens_the_right_view(page: Page, server_url):
     page.goto(server_url + "/#evidence")
     expect(page.locator("#panel-trust")).to_be_visible()
     expect(page.locator("#nav-evidence")).to_have_attribute("aria-selected", "true")
+
+
+# --- Step 9: the headline follows the selected years (D-90) ----------------------------------
+
+
+def choose_years(page: Page, first: str, last: str) -> None:
+    """Set To before From when narrowing to the end, so the range is never reversed on the way."""
+    page.select_option("#f-to", last)
+    page.select_option("#f-from", first)
+
+
+def test_explore_headline_follows_the_selected_years(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.select_option("#f-country", "BG")
+    choose_years(page, "2025", "2025")
+    finding = page.locator("#explore-finding")
+    expect(finding).to_contain_text("for hires in 2025 (31 of 33 hires stayed)")
+    expect(page.locator("[data-testid=rate-tile]").first).to_contain_text("2025 (selected years)")
+    # One scope for the whole sentence: 33 mature hires, 31 stayed, so 2 left.
+    meaning = page.locator("#explore-meaning")
+    expect(meaning).to_contain_text("Of the 2 hires who left within the window, 1 was a voluntary exit.")
+
+
+def test_overview_cards_follow_the_selected_years(page: Page, server_url):
+    page.goto(server_url + "/")
+    choose_years(page, "2022", "2023")
+    expect(page.locator("[data-objective=NEW_HIRE_6M]")).to_contain_text("86.7%")  # (344+338)/(396+391)
+    expect(page.locator("[data-objective=REGRETTED_TURNOVER_12M]")).to_contain_text("3.36%")  # December 2023
+    expect(page.locator("[data-objective=REGRETTED_TURNOVER_12M]")).to_contain_text("12 months to 2023-12-31")
+    expect(page.locator("#overview-help")).to_contain_text("2022–2023")
+
+
+def test_market_signals_tiles_follow_the_selected_years(page: Page, server_url):
+    page.goto(server_url + "/#explore/signals")
+    expect(page.locator("#understand-tiles")).to_contain_text("2021–2025")
+    choose_years(page, "2022", "2023")
+    tiles = page.locator("#understand-tiles")
+    expect(tiles).to_contain_text("New-hire 6-month retention, 2022–2023")
+    expect(tiles).to_contain_text("86.7%")
+    expect(tiles).to_contain_text("12 months to 2023-12-31")
+    expect(page.locator("#understand-finding")).to_contain_text("Across 2022–2023")
+    expect(page.locator("#understand-help")).to_contain_text("2022–2023")
+
+
+def test_overview_says_the_segment_does_not_apply_to_turnover(page: Page, server_url):
+    page.goto(server_url + "/")
+    choose_segment(page, {"employment_type": "Fixed Term"})
+    expect(page.locator("[data-objective=REGRETTED_TURNOVER_12M]")).to_contain_text("All employees")
+    expect(page.locator("[data-objective=NEW_HIRE_6M]")).not_to_contain_text("All employees")
+
+
+def test_turnover_year_table_has_no_hire_only_help(page: Page, server_url):
+    open_dashboard(page, server_url)
+    expect(page.locator("#years-help-hires")).to_be_visible()
+    page.select_option("#f-objective", "REGRETTED_TURNOVER_12M")
+    expect(page.locator("#years-help-hires")).to_be_hidden()
+
+
+# --- Step 9: filters that do not apply are disabled and explained (D-91) ---------------------
+
+PER_VIEW_FILTERS = ["#f-segment", "#f-from", "#f-to", "#f-variant"]
+
+
+def test_relationships_disables_the_filters_the_formal_tests_ignore(page: Page, server_url):
+    page.goto(server_url + "/#explore/relationships")
+    expect(page.locator("#challenge-finding")).to_contain_text("formal within-country tests")
+    for selector in PER_VIEW_FILTERS:
+        expect(page.locator(selector)).to_be_disabled()
+    expect(page.locator("#f-country")).to_be_enabled()  # still highlights that country's points
+    note = page.locator("#filter-scope-note")
+    expect(note).to_be_visible()
+    expect(note).to_contain_text("all years")
+    expect(page.locator("#f-from").locator("xpath=..")).to_have_attribute("title", re.compile("all years"))
+    page.click("#tab-explore")
+    for selector in PER_VIEW_FILTERS:
+        expect(page.locator(selector)).to_be_enabled()
+    expect(note).to_be_hidden()
+
+
+def test_evidence_disables_every_filter_and_has_its_own_objective(page: Page, server_url):
+    page.goto(server_url + "/#evidence")
+    expect(page.locator("#trust-sensitivity-summary")).to_contain_text("New-hire")
+    for selector in PER_VIEW_FILTERS + ["#f-country"]:
+        expect(page.locator(selector)).to_be_disabled()
+    expect(page.locator("#filter-scope-note")).to_contain_text("whole data set")
+    page.select_option("#e-objective", "SENIOR_HIRE_12M")
+    expect(page.locator("#trust-sensitivity-summary")).to_contain_text("Senior-hire")
+    expect(page.locator("#trust-meaning")).to_contain_text("senior-hire")
+
+
+def test_a_segment_survives_a_visit_to_relationships(page: Page, server_url):
+    open_dashboard(page, server_url)
+    choose_segment(page, {"employment_type": "Fixed Term"})
+    page.click("#tab-challenge")
+    expect(page.locator("#f-segment")).to_be_disabled()
+    page.click("#tab-explore")
+    expect(page.locator("#segment-chips")).to_contain_text("Fixed Term")
+    expect(page.locator("#explore-label")).to_contain_text("employment_type = Fixed Term")
+
+
+# --- Step 9: findings the brief asks for (D-92) ----------------------------------------------
+
+
+def test_explore_shows_whether_the_verdict_holds_across_segments(page: Page, server_url):
+    open_dashboard(page, server_url)
+    stability = page.locator("#segments-finding")
+    expect(stability).to_contain_text("holds in 7 of 9 segments")
+    expect(stability).to_contain_text("Permanent")
+    expect(page.locator("#explore-segments")).to_contain_text("Business unit")
+    page.select_option("#f-objective", "SENIOR_HIRE_12M")
+    expect(stability).to_contain_text("holds in all 6 segments")
+    page.select_option("#f-objective", "REGRETTED_TURNOVER_12M")
+    expect(page.locator("#segments-card")).to_be_hidden()
+
+
+def test_overview_findings_add_segment_stability_and_data_health(page: Page, server_url):
+    page.goto(server_url + "/")
+    findings = page.locator("#overview-findings")
+    expect(findings).to_contain_text("not met in all 6 segments")
+    expect(findings).to_contain_text("met for Permanent")
+    expect(findings).to_contain_text("changes no verdict")
+
+
+def test_explore_says_what_further_evidence_would_settle_it(page: Page, server_url):
+    open_dashboard(page, server_url)
+    next_step = page.locator("#explore-next")
+    expect(next_step).to_contain_text(re.compile(r"about [\d,]+ mature hires"))
+    page.select_option("#f-objective", "SENIOR_HIRE_12M")
+    expect(next_step).to_contain_text("exit reasons")
+    page.select_option("#f-objective", "REGRETTED_TURNOVER_12M")
+    expect(next_step).to_contain_text("hired since 2020")
+    page.click("#tab-challenge")
+    expect(page.locator("#challenge-meaning")).to_contain_text("longer history")
+
+
+def test_turnover_explains_the_early_2021_ramp_up(page: Page, server_url):
+    open_dashboard(page, server_url)
+    page.select_option("#f-objective", "REGRETTED_TURNOVER_12M")
+    meaning = page.locator("#explore-meaning")
+    expect(meaning).to_contain_text("ramp-up")
+    page.select_option("#f-from", "2023")
+    expect(meaning).not_to_contain_text("ramp-up")

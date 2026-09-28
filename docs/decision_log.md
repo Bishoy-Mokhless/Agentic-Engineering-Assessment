@@ -109,6 +109,9 @@ This log is the source for:
 | D-87 | 16 | Product rebrand | ASTERIA \| Workforce Intelligence; views Overview / Explore / Evidence | ✏️ My own answer |
 | D-88 | 16 | Disabled segment filter | Tooltip explains why segments are off for turnover | ✏️ My own answer |
 | D-89 | 17 | Plan split | Step 9 = finish the dashboard (bugs, decisions, findings); Step 10 = all submission and presentation deliverables | ✏️ My own answer |
+| D-90 | 17 | Year filter and the headline | Whole-period row, cards and tiles follow the selected hire years (recomputed with the same SQL) | ✅ Yes |
+| D-91 | 17 | Filters a view does not use | Disabled with a tooltip + one visible line; Evidence gets its own objective choice | ✅ Yes |
+| D-92 | 17 | Findings the brief asks for | Segment stability, "what would settle this", data health on Overview, 2021 turnover ramp-up | ✅ Yes |
 ---
 
 ## Round 0: How we work
@@ -2162,6 +2165,61 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
   - Presentation deck for the 15-minute talk (3 / 5 / 4 / 3 minutes).
 - **Why:** screenshots, the README and the deck all describe the dashboard, so finishing the website first means they are written once, against the final version.
 
+### Step 9 audit (2026-09-28)
+- **How:** the agent opened the running dashboard in a headless browser and went through every view × objective × country × data treatment (198 states), at desktop and phone width, collecting console errors, failed requests, "undefined/NaN" text and sideways scroll; then read the screenshots and checked the numbers against the API.
+- **Clean:** no JavaScript errors, no broken requests (except the intended reversed-years error), no bad text, no sideways scroll on a phone.
+- **Found (numbered as in the audit):**
+  1. The year filter did not reach the hire-objective headline: with 2025–2025 the headline and "whole period" tile still said 2021–2025 (the API always returned the 2021–2025 row).
+  2. "What this means" mixed two scopes: "Of the 41 hires who left …, 1 were voluntary" (41 from 2021–2025, 1 from 2025; really 2 left in 2025) and had a grammar error.
+  3. With a segment chosen, the Overview turnover card silently stayed company-wide.
+  4. Turnover's "Status by year" help mentioned hire-only "Not yet measurable" hires.
+  5. Relationships ignores years, segment and data treatment (fixed formal tests); nothing said so.
+  6. Evidence ignores all filters, and its sensitivity table showed the objective last chosen in Explore, which cannot be seen or changed there.
+  7–10. Missing findings the brief names: segment stability, what further evidence would be needed, data-health impact on Overview, the 2021 turnover ramp-up (confirmed finding 6).
+  11. Internal codes and decision IDs on the page (e.g. `NEW_HIRE_6M`, `immature_hires`, "(D-18)").
+  12–14. Minor: Overview trend points sit mid-year; the "Sample" column is mostly empty; From year after To year shows an error.
+- **Also found while fixing:** the Market signals turnover tile ignored the data treatment and the years.
+- **My decisions:** 1–2 → D-90; 5–6 → D-91; 7–10 → D-92; 3, 4 and the Market signals tile fixed as bugs; **11: leave as is** (the codes and decision IDs stay); 12–13 not changed; 14 kept on purpose (the D-45 error-state test relies on it).
+
+### D-90: The headline follows the selected years (🔁 changes the D-77 whole-period row)
+| Option | Notes |
+|---|---|
+| **Headline follows the years** ⭐ ✅ | The API recomputes the whole-period row for the selected hire years with the same SQL; one scope for every number on the page; consistent with turnover |
+| Keep 2021–2025, label it | Clear, but a narrowed filter would still not change the main number |
+
+- **What it means:**
+  - `/api/retention/cohorts?grain=period` with fewer years than 2021–2025 recomputes from `hire_outcomes` (the D-77 path), labelled e.g. `2022-2023`, or `2025` for one year. The full range still returns the precomputed row.
+  - Explore tile: "2025 (selected years)" / "2021–2025 (whole period)". Overview cards, Market signals tiles and sentences use the selected years; the turnover card is the 12 months to the last selected December.
+  - "What this means" uses one scope, and says "1 was a voluntary exit" / "N were … exits".
+- **Tests (TDD, written first and seen failing):** API 4 (narrowed row = sum of its years; one year = its year row; full range stays precomputed; combines with a segment). UI 5 (Explore headline, Overview cards, Market signals tiles, Overview turnover card says "All employees" with a segment, no hire-only help on turnover).
+
+### D-91: Filters a view does not use are disabled and explained (🔁 extends D-88)
+| Option | Notes |
+|---|---|
+| **Note + disable** ⭐ ✅ | Disabled with a tooltip (like D-88) and one visible line under the filter row |
+| Note only | Filters look active but do nothing |
+| Hide the filter row | The row jumps between views |
+
+- **What it means:**
+  - Relationships: segment, years and data treatment are disabled ("the formal tests always use all years, all employees and the primary data treatment"); Country stays on, it highlights that country's points.
+  - Evidence: every filter is disabled ("Evidence covers the whole data set"). The sensitivity table has its own Objective choice, which follows Explore until it is changed there.
+  - Disabling never clears a choice: a segment is still there when you come back.
+- **Tests (TDD):** UI 3 (Relationships, Evidence with its own objective, a segment survives a visit to Relationships).
+
+### D-92: Findings the brief asks for
+- **What I chose:** all four.
+- **Segment stability:** new endpoint `/api/retention/segments`: the whole-period verdict for each employment type, career level and business unit (job family left out: too many small groups), with the same filters, compared with the verdict for everyone: same / clearer / less certain / opposite. Built from the same `cohorts()` code, so the same SQL and rules. Shown as a table + sentence in Explore and one line on Overview. Marked descriptive: with many groups, one that differs can be chance.
+  - Result (2021–2025, company): senior-hire is **not met in all 6 segments**; new-hire is inconclusive overall but **met for Permanent (88.0%) and Manager (91.1%)** hires.
+- **What would settle this:** a line under each Explore finding.
+  - Inconclusive: the number of mature hires at which the same rate would give a 95% Wilson range that excludes the target (new-hire: about 1,982, now 1,804).
+  - Clear verdicts: why hires leave (exit reasons are not in the data).
+  - Turnover: a full-workforce extract with people hired before 2020 (D-23).
+  - Relationships: longer history, more countries or exit reasons, and a test that allows for time (D-79).
+- **Data health on Overview:** the quality finding adds "Treating the uncertain records differently changes no verdict for any objective" (from the three sensitivity answers).
+- **Ramp-up:** turnover's "What this means" says when 2021 months were above the target (peak 10.40%) and that this is a ramp-up effect of data holding only hires since 2020 (D-23), not a verdict.
+- **Tests (TDD):** API 3 (values add up per field; skipped fields; turnover rejected). UI 4 (stability in Explore, Overview findings, "what would settle this", ramp-up only when 2021 is selected).
+- **Speed:** the new endpoint made pages slow (the UI tests went from 18 s to 78 s). Profiling showed `stats.z_value` calling SciPy about 4,500 times per request; it is now cached (a pure function), and recomputes only use the requested objective's hires. One stability answer takes about 0.6 s.
+
 ---
 
 ## Implementation log
@@ -2369,6 +2427,13 @@ retention serve        -> http://127.0.0.1:8000/  and  /docs
 ```
 
 **Decision changes:** none. **Next:** Step 9 (docs and presentation) is on hold, as agreed (D-82). 🔁 Re-planned by D-89: Step 9 = finish the dashboard, Step 10 = docs and presentation.
+
+
+### Step 9: Finish the dashboard (in progress, 2026-09-28)
+**Done so far:** D-88 (segment tooltip), the Step 9 audit, D-90, D-91, D-92 and three bug fixes (Overview turnover card with a segment, turnover help text, Market signals turnover tile).
+**Verified:** `pytest` → **183 passed** (unit 102, API 41, UI 40); `ruff check .` and `ruff format --check .` clean; the browser sweep of 198 states shows no errors; screenshots checked by hand.
+**Issues met:** some files have Windows line endings (CRLF) that Git Bash tools hide; an edit script failed to match until it normalised them. `dashboard/index.html` ended up with mixed endings from earlier edits and is now CRLF again.
+**Next:** further Step 9 requests from me; Step 10 only after I confirm the website is finished (D-89).
 
 ---
 

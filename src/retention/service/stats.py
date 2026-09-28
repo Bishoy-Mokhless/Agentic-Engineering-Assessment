@@ -6,10 +6,12 @@ Spring analogy: a stateless utility class.
 from __future__ import annotations
 
 import math
+from functools import cache
 
 from scipy.stats import norm
 
 
+@cache  # pure function, called once per row: scipy's ppf is slow (D-92 made it visible)
 def z_value(confidence_level: float) -> float:
     """0.95 -> 1.96 (the number of standard errors on each side of a two-sided interval)."""
     return float(norm.ppf(1 - (1 - confidence_level) / 2))

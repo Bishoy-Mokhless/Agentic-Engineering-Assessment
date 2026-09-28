@@ -469,3 +469,14 @@ td summary { font-size: 0.8rem; }
   .main-nav button { padding: 10px 12px; }
   .explore-head .field { min-width: 0; width: 100%; }
 }
+
+/* Why some filters are disabled on this view (D-91). */
+.scope-note {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px 10px;
+  color: var(--text-2);
+  font-size: 0.86rem;
+}
+.filters select:disabled { opacity: 0.55; cursor: not-allowed; }
+.segments-finding { margin: 0 0 8px; font-weight: 600; }

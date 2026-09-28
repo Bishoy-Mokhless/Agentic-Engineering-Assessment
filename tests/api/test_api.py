@@ -132,6 +132,76 @@ def test_year_range_filter(client):
     assert [row["period"] for row in body["rows"]] == ["2022", "2023"]
 
 
+def test_whole_period_row_follows_a_narrowed_year_range(client):
+    # D-90: the headline row covers the selected hire years, recomputed with the same SQL (D-77).
+    years = get_ok(client, "/api/retention/cohorts?grain=year&year_from=2022&year_to=2023")["rows"]
+    body = get_ok(client, "/api/retention/cohorts?grain=period&year_from=2022&year_to=2023")
+    row = body["rows"][0]
+    assert len(body["rows"]) == 1
+    assert row["period"] == "2022-2023"
+    assert row["n"] == sum(year["n"] for year in years)
+    assert row["retained"] == sum(year["retained"] for year in years)
+    assert row["exits_voluntary"] == sum(year["exits_voluntary"] for year in years)
+    assert row["status"] in ("met", "not_met", "inconclusive")
+    assert "hire years 2022-2023" in body["computed"]
+
+
+def test_one_selected_year_gives_the_same_numbers_as_its_year_row(client):
+    url = "/api/retention/cohorts?grain={}&country=BG&year_from=2025&year_to=2025"
+    year = get_ok(client, url.format("year"))["rows"][0]
+    row = get_ok(client, url.format("period"))["rows"][0]
+    assert row["period"] == "2025"
+    for key in ["n", "retained", "immature_hires", "ci_low", "ci_high", "status"]:
+        assert row[key] == year[key], key
+
+
+def test_full_year_range_keeps_the_precomputed_whole_period_row(client):
+    body = get_ok(client, "/api/retention/cohorts?grain=period&year_from=2021&year_to=2025")
+    assert body["rows"][0]["period"] == "2021-2025"
+    assert body["computed"] == "precomputed by the pipeline"
+
+
+def test_narrowed_years_combine_with_a_segment(client):
+    url = "/api/retention/cohorts?grain={}&year_from=2024&year_to=2025&segment=employment_type:Fixed Term"
+    years = get_ok(client, url.format("year"))["rows"]
+    body = get_ok(client, url.format("period"))
+    assert body["rows"][0]["n"] == sum(year["n"] for year in years)
+    assert "employment_type = Fixed Term" in body["computed"] and "hire years 2024-2025" in body["computed"]
+
+
+def test_segment_stability_gives_a_verdict_per_segment_value(client):
+    # D-92: does the whole-period verdict hold in every employment type, career level and business unit?
+    body = get_ok(client, "/api/retention/segments?objective=NEW_HIRE_6M")
+    overall = body["overall"]
+    assert (overall["n"], overall["status"]) == (1804, "inconclusive")
+    assert body["dimensions"] == ["employment_type", "career_level", "business_unit"]
+    for dimension in body["dimensions"]:
+        rows = [row for row in body["rows"] if row["dimension"] == dimension]
+        assert sum(row["n"] for row in rows) == overall["n"]  # every mature hire is in exactly one value
+    agreements = {"same", "clearer", "less_certain", "opposite", "no_data"}
+    for row in body["rows"]:
+        assert row["agreement"] in agreements
+        assert row["status"] in ("met", "not_met", "inconclusive", None)
+    assert sum(body["counts"].values()) == len(body["rows"])
+
+
+def test_segment_stability_skips_fields_with_one_value_or_already_filtered(client):
+    senior = get_ok(client, "/api/retention/segments?objective=SENIOR_HIRE_12M")
+    assert "career_level" not in senior["dimensions"]  # senior = Senior Leader only (D-14)
+    filters = "segment=employment_type:Fixed Term&year_from=2024&year_to=2025"
+    fixed = get_ok(client, "/api/retention/segments?" + filters)
+    assert "employment_type" not in fixed["dimensions"]
+    base = get_ok(client, "/api/retention/cohorts?grain=period&" + filters)
+    assert fixed["overall"]["n"] == base["rows"][0]["n"]
+    units = [row for row in fixed["rows"] if row["dimension"] == "business_unit"]
+    assert sum(row["n"] for row in units) == fixed["overall"]["n"]
+
+
+def test_segment_stability_rejects_turnover(client):
+    response = client.get("/api/retention/segments?objective=REGRETTED_TURNOVER_12M")
+    assert response.status_code == 400
+
+
 def test_turnover_december_values(client):
     body = get_ok(client, "/api/retention/turnover?year_end_only=true")
     values = [(row["month_end"], row["regretted_exits"], row["status"]) for row in body["rows"]]

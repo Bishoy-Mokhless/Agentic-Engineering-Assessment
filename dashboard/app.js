@@ -20,6 +20,16 @@ const VIEWS = ["overview", "explore", "evidence"]; // main navigation (D-87)
 const TABS = ["explore", "understand", "challenge"]; // the Explore switch: detail, signals, relationships
 const TAB_ADDRESS = { explore: "detail", understand: "signals", challenge: "relationships" };
 const TURNOVER = "REGRETTED_TURNOVER_12M";
+const FILTER_SCOPE = {
+  challenge: {
+    filters: ["f-segment", "f-from", "f-to", "f-variant"],
+    hint: "Relationships: the formal tests always use all years, all employees and the primary data treatment (D-35, D-55). Country only highlights that country's points.",
+  },
+  trust: {
+    filters: ["f-country", "f-segment", "f-from", "f-to", "f-variant"],
+    hint: "Evidence covers the whole data set, so the filters above do not apply here.",
+  },
+};
 const SEGMENT_DISABLED_HINT = "Segments apply to hire cohorts only. Regretted turnover is measured for all employees.";
 const COUNTRIES = ["GR", "RO", "PL", "IT", "IE", "BG"];
 
@@ -162,6 +172,56 @@ function clearFinding(tab) {
   }
   clear(byId(tab + "-finding"));
   clear(byId(tab + "-meaning"));
+  if (byId(tab + "-next")) {
+    clear(byId(tab + "-next"));
+  }
+}
+
+/** "What would settle this" line under a finding (D-92: what further evidence would be needed). */
+function setNext(tab, text) {
+  const box = byId(tab + "-next");
+  clear(box);
+  if (text) {
+    box.appendChild(el("strong", "What would settle this: "));
+    box.appendChild(document.createTextNode(text));
+  }
+}
+
+/** 95% Wilson interval, as in the pipeline (service/stats.py, D-33). */
+function wilsonBounds(rate, n) {
+  const z = 1.96;
+  const denominator = 1 + (z * z) / n;
+  const centre = (rate + (z * z) / (2 * n)) / denominator;
+  const half = (z * Math.sqrt((rate * (1 - rate)) / n + (z * z) / (4 * n * n))) / denominator;
+  return [centre - half, centre + half];
+}
+
+/** Smallest n at which the same rate would give a 95% interval that no longer includes the target; null if unrealistic. */
+function hiresNeeded(rate, target) {
+  if (Math.abs(rate - target) < 0.002) {
+    return null; // the rate sits on the target: no sample size settles it
+  }
+  const settled = function (n) {
+    const bounds = wilsonBounds(rate, n);
+    return rate > target ? bounds[0] > target : bounds[1] < target;
+  };
+  let high = 1;
+  while (!settled(high)) {
+    high *= 2;
+    if (high > 10000000) {
+      return null;
+    }
+  }
+  let low = Math.floor(high / 2);
+  while (high - low > 1) {
+    const middle = Math.floor((low + high) / 2);
+    if (settled(middle)) {
+      high = middle;
+    } else {
+      low = middle;
+    }
+  }
+  return high;
 }
 
 /**
@@ -379,6 +439,20 @@ function xFromPeriod(period) {
     return year + (month - 0.5) / 12;
   }
   return Number(period) + 0.5;
+}
+
+/** The selected hire years as text (D-90): "2021–2025", or "2025" for one year. */
+function yearsText() {
+  const range = yearRange();
+  const last = range.max - 1;
+  return range.min === last ? String(last) : range.min + "–" + last;
+}
+
+/** True when the years filter covers every available year (the whole period). */
+function allYearsSelected() {
+  const years = state.filters.years;
+  const range = yearRange();
+  return range.min === Number(years[0]) && range.max - 1 === Number(years[years.length - 1]);
 }
 
 function yearRange() {
@@ -686,6 +760,7 @@ function fillFilters(filters) {
     objectives.push({ value: objective.objective_id, label: objective.name });
   }
   fillSelect(byId("f-objective"), objectives, state.objective);
+  fillSelect(byId("e-objective"), objectives, state.objective); // Evidence's own choice (D-91)
 
   const countries = [];
   for (const country of filters.countries) {
@@ -740,20 +815,43 @@ function fillVariants() {
   fillSelect(byId("f-variant"), options, state.variant);
 
   // Segments exist for hire cohorts only (D-77); turnover is for all employees.
-  const segment = byId("f-segment");
-  segment.disabled = state.objective === TURNOVER;
-  // Disabled buttons get no hover events in some browsers, so the hint also sits on the wrapper.
-  for (const node of [segment, segment.parentElement]) {
-    if (segment.disabled) {
-      node.title = SEGMENT_DISABLED_HINT;
-    } else {
-      node.removeAttribute("title");
-    }
-  }
-  if (segment.disabled) {
+  if (state.objective === TURNOVER) {
     state.segments = {};
     closeSegmentPanel(false);
     updateSegmentUi();
+  }
+  applyFilterScope();
+}
+
+/**
+ * Disable the filters the current view does not use, with the reason as a tooltip and one visible line (D-91).
+ * Relationships: the formal tests are fixed (all years, all employees, primary data). Evidence: the whole data set.
+ * Disabling never clears a choice, so a segment is still there when you come back.
+ */
+function applyFilterScope() {
+  const panel = currentPanel();
+  const locked = FILTER_SCOPE[panel] || { filters: [], hint: "" };
+  const note = byId("filter-scope-note");
+  note.textContent = locked.hint;
+  note.hidden = locked.filters.length === 0;
+  for (const id of ["f-country", "f-segment", "f-from", "f-to", "f-variant"]) {
+    let hint = locked.filters.indexOf(id) >= 0 ? locked.hint : "";
+    if (!hint && id === "f-segment" && state.objective === TURNOVER) {
+      hint = SEGMENT_DISABLED_HINT; // D-88
+    }
+    const control = byId(id);
+    control.disabled = hint !== "";
+    if (id === "f-segment" && control.disabled) {
+      closeSegmentPanel(false);
+    }
+    // Disabled controls get no hover events in some browsers, so the hint also sits on the wrapper.
+    for (const node of [control, control.parentElement]) {
+      if (hint) {
+        node.title = hint;
+      } else {
+        node.removeAttribute("title");
+      }
+    }
   }
 }
 
@@ -765,6 +863,7 @@ function readFilters() {
   state.yearTo = Number(byId("f-to").value);
   state.variant = byId("f-variant").value;
   if (state.objective !== previousObjective) {
+    byId("e-objective").value = state.objective; // Evidence follows Explore until changed there
     fillVariants();
     state.variant = byId("f-variant").value;
   }
@@ -824,6 +923,7 @@ function readAddress() {
 function showCurrent(moveFocusTo) {
   showSelected(VIEWS, "nav-", "view-", state.view, moveFocusTo === "view");
   showSelected(TABS, "tab-", "panel-", state.tab, moveFocusTo === "tab");
+  applyFilterScope();
   writeAddress();
   loadCurrentTab();
 }
@@ -950,14 +1050,20 @@ async function loadOverview(myLoad) {
 
   // 1. One request per piece of data, all at once.
   const requests = [
-    fetchJson("/api/retention/cohorts", Object.assign({ objective: "NEW_HIRE_6M", grain: "period" }, hireParams)),
-    fetchJson("/api/retention/cohorts", Object.assign({ objective: "SENIOR_HIRE_12M", grain: "period" }, hireParams)),
+    fetchJson("/api/retention/cohorts", Object.assign({ objective: "NEW_HIRE_6M", grain: "period" }, hireParams, years)),
+    fetchJson("/api/retention/cohorts", Object.assign({ objective: "SENIOR_HIRE_12M", grain: "period" }, hireParams, years)),
     fetchJson("/api/retention/cohorts", Object.assign({ objective: "NEW_HIRE_6M", grain: "year" }, hireParams, years)),
     fetchJson("/api/retention/cohorts", Object.assign({ objective: "SENIOR_HIRE_12M", grain: "year" }, hireParams, years)),
-    fetchJson("/api/retention/turnover", { country: country, variant: state.variant, year_end_only: true }),
+    fetchJson("/api/retention/turnover", Object.assign({ country: country, variant: state.variant, year_end_only: true }, years)),
     fetchJson("/api/association"),
     fetchJson("/api/quality"),
+    fetchJson("/api/retention/segments", Object.assign({ objective: "SENIOR_HIRE_12M" }, hireParams, years)),
+    fetchJson("/api/retention/segments", Object.assign({ objective: "NEW_HIRE_6M" }, hireParams, years)),
+    fetchJson("/api/retention/sensitivity", { objective: "NEW_HIRE_6M" }),
+    fetchJson("/api/retention/sensitivity", { objective: "SENIOR_HIRE_12M" }),
+    fetchJson("/api/retention/sensitivity", { objective: TURNOVER }),
   ];
+  const signalsFrom = requests.length; // the indicator answers follow
   for (const indicator of OVERVIEW_SIGNALS) {
     requests.push(fetchJson("/api/indicators", Object.assign({ indicator: indicator, country: country === "ALL" ? null : country }, years)));
   }
@@ -972,12 +1078,21 @@ async function loadOverview(myLoad) {
   const decembers = answers[4].rows;
   const lastDecember = decembers.length > 0 ? decembers[decembers.length - 1] : null;
 
-  // 2. Cards.
+  // 2. Cards: the selected hire years; turnover = the 12 months to the last selected December (D-90).
+  byId("overview-help").textContent = "Each card is the " + yearsText() + " result for the filters above " +
+    "(turnover: the 12 months to the last selected December). Select a card to explore it.";
   const cards = byId("overview-cards");
   clear(cards);
-  cards.appendChild(overviewCard("NEW_HIRE_6M", "New-hire retention, 6 months", newHire, 1));
-  cards.appendChild(overviewCard("SENIOR_HIRE_12M", "Senior-hire retention, 12 months", senior, 1));
-  cards.appendChild(overviewCard(TURNOVER, "Regretted turnover, last 12 months", lastDecember, 2));
+  cards.appendChild(overviewCard("NEW_HIRE_6M", "New-hire retention, 6 months, " + yearsText(), newHire, 1));
+  cards.appendChild(overviewCard("SENIOR_HIRE_12M", "Senior-hire retention, 12 months, " + yearsText(), senior, 1));
+  const turnoverTitle = "Regretted turnover, " + (lastDecember ? "12 months to " + lastDecember.month_end : "last 12 months");
+  const turnoverCard = overviewCard(TURNOVER, turnoverTitle, lastDecember, 2);
+  if (segment.length > 0) {
+    // Segments exist for hire cohorts only (D-77, D-88).
+    turnoverCard.insertBefore(el("span", "All employees: the segment filter applies to the hire objectives only.", "card-detail"),
+      turnoverCard.lastChild);
+  }
+  cards.appendChild(turnoverCard);
 
   // 3. Trend by hire year for the two hire objectives (both are rates, so one axis).
   drawOverviewTrend(newHireYears, seniorYears);
@@ -989,7 +1104,7 @@ async function loadOverview(myLoad) {
     const indicator = OVERVIEW_SIGNALS[index];
     const item = el("li");
     item.appendChild(el("strong", indicatorLabel(indicator)));
-    const sentence = signalMovement(answers[7 + index].rows, indicator, country, false);
+    const sentence = signalMovement(answers[signalsFrom + index].rows, indicator, country, false);
     item.appendChild(el("span", sentence || "No values in the selected years.", "market-text"));
     market.appendChild(item);
   }
@@ -1001,8 +1116,9 @@ async function loadOverview(myLoad) {
     hireFinding("SENIOR_HIRE_12M", senior, seniorYears),
     hireFinding("NEW_HIRE_6M", newHire, newHireYears),
     turnoverFinding(decembers),
+    stabilityFinding([["SENIOR_HIRE_12M", answers[7]], ["NEW_HIRE_6M", answers[8]]]),
     associationFinding(answers[5]),
-    qualityFinding(answers[6].report.hr),
+    qualityFinding(answers[6].report.hr, [answers[9], answers[10], answers[11]]),
   ];
   for (const line of lines) {
     if (line) {
@@ -1154,13 +1270,33 @@ function associationFinding(answer) {
     "(associative, not causal); see Relationships in Explore.";
 }
 
-/** Example: "2,407 HR rows reconcile to 2,400 employees; 12 uncertain exits are quarantined and 10 records excluded." */
-function qualityFinding(hr) {
+/** Example: "Across segments, senior-hire ... is not met in all 6 segments; new-hire ... is inconclusive overall but met for ...". */
+function stabilityFinding(pairs) {
+  const clauses = pairs.map((pair) => stabilityClause(pair[0], pair[1])).filter((clause) => clause);
+  if (clauses.length === 0) {
+    return "";
+  }
+  return "Across segments, " + clauses.join("; ") + " (descriptive; see Explore).";
+}
+
+/**
+ * Data health (D-92), e.g. "2,407 HR rows reconcile to 2,400 employees; 12 uncertain exits are quarantined and 10 records
+ * excluded. Treating the uncertain records differently changes no verdict for any objective (details in Evidence)."
+ */
+function qualityFinding(hr, sensitivities) {
   const rec = hr.reconciliation;
   const statuses = hr.metric_status;
-  return count(rec.rows_in_file) + " HR rows " + (rec.balanced ? "reconcile" : "do NOT reconcile") + " to " +
+  let line = count(rec.rows_in_file) + " HR rows " + (rec.balanced ? "reconcile" : "do NOT reconcile") + " to " +
     count(rec.employees_out) + " employees; " + count(statuses.QUARANTINED || 0) + " uncertain exits are quarantined and " +
-    count(statuses.EXCLUDED || 0) + " records excluded (details in Evidence).";
+    count(statuses.EXCLUDED || 0) + " records excluded.";
+  const changed = sensitivities.filter((answer) => answer.verdict_changes.length > 0);
+  if (changed.length === 0) {
+    line += " Treating the uncertain records differently changes no verdict for any objective";
+  } else {
+    line += " Treating the uncertain records differently changes a verdict for " +
+      joinWords(changed.map((answer) => lowerFirst(answer.objective.name)));
+  }
+  return line + " (details in Evidence).";
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1186,10 +1322,12 @@ async function exploreCohorts(meta, myLoad) {
     fetchJson("/api/retention/cohorts", Object.assign({}, params, { grain: "period" })),
     fetchJson("/api/retention/cohorts", Object.assign({}, params, { grain: "year" })),
     fetchJson("/api/retention/cohorts", Object.assign({}, params, { grain: "quarter" })),
+    fetchJson("/api/retention/segments", params),
   ]);
   if (myLoad !== loadCounter) {
     return; // a newer filter change is already loading
   }
+  const stability = answers[3];
   const period = answers[0].rows;
   const years = answers[1].rows;
   const quarters = answers[2].rows;
@@ -1204,13 +1342,16 @@ async function exploreCohorts(meta, myLoad) {
   }
   content.hidden = false;
   byId("exit-card").hidden = false;
+  byId("segments-card").hidden = false;
+  byId("years-help-hires").hidden = false;
 
   // 1. Tiles: whole period + the latest selected year.
   const tiles = byId("explore-tiles");
   clear(tiles);
   const whole = period[0];
+  // The API computes this row for the selected hire years (D-90).
   const periodText = String(whole.period).replace("-", "–");
-  tiles.appendChild(rateTile(periodText + " (whole period)", whole, meta));
+  tiles.appendChild(rateTile(periodText + (allYearsSelected() ? " (whole period)" : " (selected years)"), whole, meta));
   const measuredYears = years.filter((row) => row.n > 0);
   if (measuredYears.length > 0) {
     const last = measuredYears[measuredYears.length - 1];
@@ -1268,8 +1409,101 @@ async function exploreCohorts(meta, myLoad) {
     verdictSentence(whole, meta, 1) +
     (whole.small_sample ? " The sample is small (fewer than 10 hires), so read it with care." : "");
   setFinding("explore", sentence, whole.status, cohortMeaning(years, whole, totals, meta));
+  setNext("explore", cohortNext(whole, meta));
+
+  // 6. Segment stability (D-92).
+  byId("segments-finding").textContent = stabilitySentence(stability);
+  buildTable(byId("explore-segments"), [
+    { label: "Field", format: (row) => DIMENSION_LABELS[row.dimension] || row.dimension },
+    { key: "value", label: "Group" },
+    { key: "n", label: "Mature hires (n)", numeric: true },
+    { label: "Rate", numeric: true, format: (row) => pct(row.rate, 1) },
+    { label: "95% interval", numeric: true, format: (row) => (row.rate === null ? "–" : pct(row.ci_low, 1) + "–" + pct(row.ci_high, 1)) },
+    { label: "Status", format: (row) => statusBadge(row.status) },
+    { label: "Compared with everyone", format: (row) => AGREEMENT_WORDS[row.agreement] },
+  ], stability.rows);
 
   fillNotes(answers[0].notes.concat(["Values: " + answers[0].computed + "."]));
+}
+
+const DIMENSION_LABELS = { employment_type: "Employment type", career_level: "Career level", business_unit: "Business unit" };
+const AGREEMENT_WORDS = {
+  same: "Same verdict",
+  clearer: "Clearer verdict",
+  less_certain: "Less certain (smaller group)",
+  opposite: "Opposite verdict",
+  no_data: "No mature hires",
+};
+const VERDICT_WORDS = { met: "met", not_met: "not met", inconclusive: "inconclusive" };
+
+/**
+ * Segment stability in words (D-92).
+ * Example: "The inconclusive verdict holds in 7 of 9 segments. Clearer: Permanent (met, 88.0%), Manager (met, 91.1%)."
+ */
+function stabilitySentence(answer) {
+  const rows = answer.rows.filter((row) => row.agreement !== "no_data");
+  if (!answer.overall || rows.length === 0) {
+    return "No segment has mature hires for these filters.";
+  }
+  const verdict = VERDICT_WORDS[answer.overall.status] || "overall";
+  const same = rows.filter((row) => row.agreement === "same").length;
+  let text = same === rows.length
+    ? "The " + verdict + " verdict holds in all " + rows.length + " segments."
+    : "The " + verdict + " verdict holds in " + same + " of " + rows.length + " segments.";
+  const groups = [["opposite", "Opposite"], ["clearer", "Clearer"], ["less_certain", "Less certain"]];
+  for (const [agreement, label] of groups) {
+    const names = rows.filter((row) => row.agreement === agreement)
+      .map((row) => row.value + " (" + VERDICT_WORDS[row.status] + ", " + pct(row.rate, 1) + ")");
+    if (names.length > 0) {
+      text += " " + label + ": " + names.join(", ") + ".";
+    }
+  }
+  return text;
+}
+
+/** One objective for the Overview, e.g. "new-hire ... is inconclusive overall but met for Permanent and Manager hires". */
+function stabilityClause(objectiveId, answer) {
+  const name = lowerFirst(objectiveMeta(objectiveId).name);
+  const rows = answer.rows.filter((row) => row.agreement !== "no_data");
+  if (!answer.overall || rows.length === 0) {
+    return "";
+  }
+  const verdict = VERDICT_WORDS[answer.overall.status];
+  if (rows.every((row) => row.agreement === "same")) {
+    return name + " is " + verdict + " in all " + rows.length + " segments";
+  }
+  const byStatus = {};
+  for (const row of rows.filter((item) => item.agreement === "clearer" || item.agreement === "opposite")) {
+    byStatus[row.status] = (byStatus[row.status] || []).concat([row.value]);
+  }
+  const parts = Object.keys(byStatus).map((status) => VERDICT_WORDS[status] + " for " + joinWords(byStatus[status]) + " hires");
+  if (parts.length === 0) {
+    const unsure = rows.filter((row) => row.agreement === "less_certain").length;
+    return name + " is " + verdict + " overall; " + unsure + " smaller segments are inconclusive";
+  }
+  return name + " is " + verdict + " overall but " + parts.join(" and ");
+}
+
+/** ["A"] -> "A"; ["A", "B"] -> "A and B"; ["A", "B", "C"] -> "A, B and C". */
+function joinWords(words) {
+  if (words.length <= 1) {
+    return words.join("");
+  }
+  return words.slice(0, -1).join(", ") + " and " + words[words.length - 1];
+}
+
+/** What further evidence would settle a hire objective (D-92). */
+function cohortNext(whole, meta) {
+  if (whole.status === "inconclusive") {
+    const needed = hiresNeeded(whole.rate, meta.target);
+    if (needed === null) {
+      return "The rate sits almost exactly on the target, so more hires alone would not settle it.";
+    }
+    return "At the same rate, about " + count(needed) + " mature hires would be needed for the 95% range to exclude the target (now " +
+      count(whole.n) + "). More years of hires would give that.";
+  }
+  return "The verdict is clear with this sample. To act on it, the next evidence is why hires leave: exit reasons " +
+    "(interviews, surveys) are not in this data set.";
 }
 
 /** "What this means" for a hire objective: the year pattern, the main exit reason, the hires not yet measurable. */
@@ -1287,8 +1521,9 @@ function cohortMeaning(years, whole, totals, meta) {
         topType = type;
       }
     }
-    parts.push("Of the " + count(leavers) + " hires who left within the window, " + count(totals[topType]) +
-      " were " + lowerFirst(topType) + " exits.");
+    const topCount = totals[topType];
+    parts.push("Of the " + count(leavers) + " hires who left within the window, " + count(topCount) +
+      (topCount === 1 ? " was a " + lowerFirst(topType) + " exit." : " were " + lowerFirst(topType) + " exits."));
   }
   if (whole.immature_hires > 0) {
     const months = meta.objective_id === "NEW_HIRE_6M" ? "6" : "12";
@@ -1358,6 +1593,8 @@ async function exploreTurnover(meta, myLoad) {
   }
   content.hidden = false;
   byId("exit-card").hidden = true;
+  byId("segments-card").hidden = true; // segments exist for hire cohorts only (D-77)
+  byId("years-help-hires").hidden = true; // no hire windows in turnover
 
   const decembers = rows.filter((row) => row.is_year_end);
   const tiles = byId("explore-tiles");
@@ -1391,15 +1628,19 @@ async function exploreTurnover(meta, myLoad) {
     const sentence = "Regretted turnover" + placeText(state.country) + " in the 12 months to " + last.month_end + " was " +
       pct(last.rate, 2) + " (" + count(last.regretted_exits) + " regretted exits, average headcount " +
       count(Math.round(last.avg_headcount)) + "). " + verdictSentence(last, meta, 2);
-    setFinding("explore", sentence, last.status, turnoverMeaning(decembers));
+    setFinding("explore", sentence, last.status, turnoverMeaning(decembers, rows, meta));
+    setNext("explore", "The data holds only employees hired since 2020 (D-23), so the early headcounts are too low. " +
+      "A full-workforce extract, with people hired before 2020, would settle the early years; exits with an unknown " +
+      "regretted flag are shown as a worst case in Evidence.");
   } else {
+    setNext("explore", "");
     setFinding("explore", "No December value in the selected years, so no verdict is given. The chart shows the monthly trend.");
   }
   fillNotes(answer.notes);
 }
 
-/** "What this means" for turnover: years meeting the target, and the change in the latest year. */
-function turnoverMeaning(decembers) {
+/** "What this means" for turnover: years meeting the target, the change in the latest year, the 2021 ramp-up. */
+function turnoverMeaning(decembers, rows, meta) {
   let met = 0;
   for (const row of decembers) {
     if (row.status === "met") {
@@ -1414,7 +1655,33 @@ function turnoverMeaning(decembers) {
     parts.push("It " + direction + " from " + pct(before.rate, 2) + " in " + before.month_end.slice(0, 4) +
       " to " + pct(last.rate, 2) + " in " + last.month_end.slice(0, 4) + ".");
   }
+  const rampUp = rampUpText(rows, meta);
+  if (rampUp) {
+    parts.push(rampUp);
+  }
   return parts.join(" ");
+}
+
+/**
+ * The 2021 ramp-up (confirmed finding 6): months above the target while headcount was still small and growing.
+ * Example: "In 2021 the monthly rate was above the target for 8 months (peak 10.40% in 2021-02) ..."
+ */
+function rampUpText(rows, meta) {
+  const firstYear = String(state.filters.years[0]);
+  const above = rows.filter((row) => row.month_end.slice(0, 4) === firstYear && row.rate !== null &&
+    (meta.direction === "at_most" ? row.rate > meta.target : row.rate < meta.target));
+  if (above.length === 0) {
+    return "";
+  }
+  let peak = above[0];
+  for (const row of above) {
+    if (row.rate > peak.rate) {
+      peak = row;
+    }
+  }
+  return "In " + firstYear + " the monthly rate was above the target for " + above.length + " month" + (above.length === 1 ? "" : "s") +
+    " (peak " + pct(peak.rate, 2) + " in " + peak.month_end.slice(0, 7) + ") while headcount was still small and growing: " +
+    "a ramp-up effect of data that holds only employees hired since 2020 (D-23), not a verdict.";
 }
 
 function fillNotes(notes) {
@@ -1436,26 +1703,29 @@ async function loadUnderstand(myLoad) {
   const segment = segmentList();
 
   // 1. Status of all three objectives for the selected country (whole period / latest December).
+  const years = { year_from: state.yearFrom, year_to: state.yearTo };
   const hireParams = { country: country, variant: state.variant === "unknown_as_regretted" ? "primary" : state.variant, segment: segment, grain: "period" };
   const answers = await Promise.all([
-    fetchJson("/api/retention/cohorts", Object.assign({ objective: "NEW_HIRE_6M" }, hireParams)),
-    fetchJson("/api/retention/cohorts", Object.assign({ objective: "SENIOR_HIRE_12M" }, hireParams)),
-    fetchJson("/api/retention/turnover", { country: country, year_end_only: true }),
+    fetchJson("/api/retention/cohorts", Object.assign({ objective: "NEW_HIRE_6M" }, hireParams, years)),
+    fetchJson("/api/retention/cohorts", Object.assign({ objective: "SENIOR_HIRE_12M" }, hireParams, years)),
+    fetchJson("/api/retention/turnover", Object.assign({ country: country, variant: state.variant, year_end_only: true }, years)),
     fetchJson("/api/indicators", { indicator: indicator, country: country === "ALL" ? null : country, year_from: state.yearFrom, year_to: state.yearTo }),
   ]);
   if (myLoad !== loadCounter) {
     return;
   }
 
+  byId("understand-help").textContent = "The " + yearsText() + " result for each objective " +
+    "(turnover: the 12 months to the last selected December), with its verdict.";
   const tiles = byId("understand-tiles");
   clear(tiles);
   const newHire = answers[0].rows[0];
   const senior = answers[1].rows[0];
   if (newHire && newHire.n > 0) {
-    tiles.appendChild(rateTile("New-hire 6-month retention, 2021–2025", newHire, objectiveMeta("NEW_HIRE_6M")));
+    tiles.appendChild(rateTile("New-hire 6-month retention, " + yearsText(), newHire, objectiveMeta("NEW_HIRE_6M")));
   }
   if (senior && senior.n > 0) {
-    tiles.appendChild(rateTile("Senior-hire 12-month retention, 2021–2025", senior, objectiveMeta("SENIOR_HIRE_12M")));
+    tiles.appendChild(rateTile("Senior-hire 12-month retention, " + yearsText(), senior, objectiveMeta("SENIOR_HIRE_12M")));
   }
   const decembers = answers[2].rows;
   if (decembers.length > 0) {
@@ -1496,7 +1766,7 @@ async function loadUnderstand(myLoad) {
 }
 
 /**
- * Example: "Across 2021–2025, new-hire retention is inconclusive, senior-hire retention is not met,
+ * Example: "Across 2021–2025 (the selected years), new-hire retention is inconclusive, senior-hire retention is not met,
  * and regretted turnover is met (12 months to 2025-12-31)."
  */
 function understandSentence(newHire, senior, lastDecember, country) {
@@ -1521,7 +1791,7 @@ function understandSentence(newHire, senior, lastDecember, country) {
   } else if (parts.length === 3) {
     list = parts[0] + ", " + parts[1] + ", and " + parts[2];
   }
-  return "Across 2021–2025" + placeText(country) + ", " + list + ".";
+  return "Across " + yearsText() + placeText(country) + ", " + list + ".";
 }
 
 /**
@@ -1730,7 +2000,8 @@ function challengeMeaning(formal) {
   return "The strongest was " + indicatorLabel(strongest.indicator) + " (rho " + num(strongest.rho, 2) +
     ", raw p " + num(strongest.p_value, 2) + ", Holm-adjusted p " + num(strongest.p_holm, 2) + "). " +
     "These results are associative, not causal, and a result without a clear association does not show that no relationship exists: " +
-    "small samples and repeated observations limit inference.";
+    "small samples and repeated observations limit inference. Stronger evidence would need a longer history per country, " +
+    "more countries or employee-level exit reasons, and a test that allows for the time trend (D-79).";
 }
 
 async function loadChallenge(myLoad) {
@@ -1899,7 +2170,7 @@ async function loadTrust(myLoad) {
   const answers = await Promise.all([
     fetchJson("/api/sources"),
     fetchJson("/api/quality"),
-    fetchJson("/api/retention/sensitivity", { objective: state.objective }),
+    fetchJson("/api/retention/sensitivity", { objective: byId("e-objective").value }),
   ]);
   if (myLoad !== loadCounter) {
     return;
@@ -1954,8 +2225,9 @@ async function loadTrust(myLoad) {
   byId("trust-principle").textContent = quality.principle;
 
   // 3. Sensitivity for the selected objective.
-  byId("trust-sensitivity-summary").textContent = objectiveMeta(state.objective).name + ": " + sensitivity.summary;
-  const digits = state.objective === TURNOVER ? 2 : 1;
+  const evidenceObjective = byId("e-objective").value;
+  byId("trust-sensitivity-summary").textContent = objectiveMeta(evidenceObjective).name + ": " + sensitivity.summary;
+  const digits = evidenceObjective === TURNOVER ? 2 : 1;
   buildTable(byId("trust-sensitivity"), [
     { key: "period", label: "Period" },
     { label: "Treatment", format: (row) => row.variant + ": " + (sensitivity.variants[row.variant] || "") },
@@ -1990,7 +2262,7 @@ function statusText(status) {
 
 /** "Sensitivity + source" reading for the Trust finding. */
 function trustMeaning(sources, sensitivity) {
-  const name = lowerFirst(objectiveMeta(state.objective).name);
+  const name = lowerFirst(objectiveMeta(byId("e-objective").value).name);
   const byStatus = {};
   for (const source of sources) {
     byStatus[source.status] = (byStatus[source.status] || 0) + 1;
@@ -2080,7 +2352,7 @@ async function init() {
       loadCurrentTab();
     });
   }
-  for (const id of ["u-indicator", "c-indicator", "c-view", "c-set"]) {
+  for (const id of ["u-indicator", "c-indicator", "c-view", "c-set", "e-objective"]) {
     byId(id).addEventListener("change", loadCurrentTab);
   }
   readFilters();
