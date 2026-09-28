@@ -2096,6 +2096,15 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
   - UI (4): combine + chips; remove one chip, then clear all; unit narrows job families; Escape closes without applying.
   - 2 existing UI tests now use the panel.
 
+### D-88: Explain the disabled segment filter (🔁 extends D-86)
+- **What I said:** with regretted turnover chosen, the Workforce segment filter is disabled with no explanation; add a tooltip that says why.
+- **What changed:**
+  - When turnover is chosen, hovering over the filter shows: "Segments apply to hire cohorts only. Regretted turnover is measured for all employees."
+  - The text is set on the button and on its wrapper, because some browsers (e.g. Firefox) show no hover tooltip on a disabled button.
+  - Choosing a hire objective enables the filter again and removes the tooltip.
+- **Known limit:** a disabled button cannot take keyboard focus, so keyboard users do not see the tooltip. Visible hint text under the filter would fix that if needed.
+- **Tests (TDD):** the existing turnover UI test now also checks the tooltip is present for turnover and gone for a hire objective. It was written first and seen failing.
+
 ---
 
 ## Implementation log

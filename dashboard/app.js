@@ -18,6 +18,7 @@
 
 const TABS = ["explore", "understand", "challenge", "trust"];
 const TURNOVER = "REGRETTED_TURNOVER_12M";
+const SEGMENT_DISABLED_HINT = "Segments apply to hire cohorts only. Regretted turnover is measured for all employees.";
 const COUNTRIES = ["GR", "RO", "PL", "IT", "IE", "BG"];
 
 const state = {
@@ -735,6 +736,14 @@ function fillVariants() {
   // Segments exist for hire cohorts only (D-77); turnover is for all employees.
   const segment = byId("f-segment");
   segment.disabled = state.objective === TURNOVER;
+  // Disabled buttons get no hover events in some browsers, so the hint also sits on the wrapper.
+  for (const node of [segment, segment.parentElement]) {
+    if (segment.disabled) {
+      node.title = SEGMENT_DISABLED_HINT;
+    } else {
+      node.removeAttribute("title");
+    }
+  }
   if (segment.disabled) {
     state.segments = {};
     closeSegmentPanel(false);

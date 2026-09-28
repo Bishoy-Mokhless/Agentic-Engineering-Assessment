@@ -12,6 +12,10 @@ from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.ui
 
+SEGMENT_DISABLED_HINT = (
+    "Segments apply to hire cohorts only. Regretted turnover is measured for all employees."
+)
+
 
 def open_dashboard(page: Page, server_url: str) -> None:
     page.goto(server_url + "/")
@@ -63,8 +67,12 @@ def test_turnover_objective_disables_the_segment_filter(page: Page, server_url):
     open_dashboard(page, server_url)
     page.select_option("#f-objective", "REGRETTED_TURNOVER_12M")
     expect(page.locator("#f-segment")).to_be_disabled()
+    expect(page.locator(".segment-field")).to_have_attribute("title", SEGMENT_DISABLED_HINT)
+    expect(page.locator("#f-segment")).to_have_attribute("title", SEGMENT_DISABLED_HINT)
     expect(page.locator("[data-testid=rate-tile]").first).to_contain_text("5.11%")
-    expect(page.locator("#explore-years")).to_contain_text("2025-12-31")
+    page.select_option("#f-objective", "NEW_HIRE_6M")
+    expect(page.locator("#f-segment")).to_be_enabled()
+    expect(page.locator(".segment-field")).not_to_have_attribute("title", SEGMENT_DISABLED_HINT)
 
 
 def test_empty_state_for_a_slice_without_hires(page: Page, server_url):
