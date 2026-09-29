@@ -2455,11 +2455,19 @@ retention serve        -> http://127.0.0.1:8000/  and  /docs
 **Decision changes:** none. **Next:** Step 9 (docs and presentation) is on hold, as agreed (D-82). 🔁 Re-planned by D-89: Step 9 = finish the dashboard, Step 10 = docs and presentation.
 
 
-### Step 9: Finish the dashboard (in progress, 2026-09-28)
+### Step 9: Finish the dashboard (closed 2026-09-29)
 **Done so far:** D-88 (segment tooltip), the Step 9 audit, D-90, D-91, D-92, D-93, D-94 and three bug fixes (Overview turnover card with a segment, turnover help text, Market signals turnover tile).
 **Verified:** `pytest` → **183 passed** (unit 102, API 41, UI 40); `ruff check .` and `ruff format --check .` clean; the browser sweep of 198 states shows no errors; screenshots checked by hand.
 **Issues met:** some files have Windows line endings (CRLF) that Git Bash tools hide; an edit script failed to match until it normalised them. `dashboard/index.html` ended up with mixed endings from earlier edits and is now CRLF again.
-**Next:** further Step 9 requests from me; Step 10 only after I confirm the website is finished (D-89).
+**Closed:** after D-94 I confirmed the website is finished (a question about the senior "Hire year 2024" tile was answered: 2025 senior hires are not yet measurable, D-18; no change). Step 10 follows.
+
+### Step 10: Submission documents (2026-09-29)
+**Built:** `README.md` (problem, scope, architecture, install, run, tests, outputs, the brief's views mapped to ours, key findings, limitations, documentation map, effort), `AI_USAGE.md`, `docs/requirements_refinement.md` (with 12 acceptance criteria mapped to tests), `docs/source_register.md`, `docs/methodology.md`, `docs/architecture.md` (ADF / Databricks / Power BI mapping: secrets, scheduling, observability, storage, access control, promotion), `docs/screenshots/` (8 views at double resolution, each split into a top and a bottom half at a gap between blocks, so no chart or table is cut), `presentation/index.html` (14-slide HTML deck following the 3 / 5 / 4 / 3-minute structure; prints to PDF) and `presentation/deck.pptx` (the same 14 slides as a PowerPoint file, checked by rendering every slide in PowerPoint).
+
+**Final review against the brief:** every artifact in the brief's definition of done was checked (README contents, requirements refinement, source register, implementation, tests and replay data, generated evidence, AI_USAGE, deck), the pipeline was rerun (all data files and the quality report byte-identical; only the run records change) and `pytest` passed 186 tests. Fixes: `AI_USAGE.md` gained a **Representative prompts** section, because the brief asks for meaningful prompts or task descriptions; the run time was corrected from "about 15 seconds" to "under a minute" (measured 40 s); the brief moved from the repository root to `docs/brief/` with a clean file name.
+**Facts I provided:** effort about 30 hours over 4 days; tools Claude Code, ChatGPT (explanations only, no code or data shared) and web search; the 5 clarification questions were prepared but not sent, because each needed a decision in the code anyway.
+**Verified:** every number in the documents re-read from the curated data; test references checked against the real test names (one wrong reference fixed); no broken links; the deck rendered in a browser with no overflow.
+**Issues met:** two claims in the first AI_USAGE draft were not supported by the log ("tests first from Step 2" and the JOBRATE wording) and were corrected before review.
 
 ---
 
