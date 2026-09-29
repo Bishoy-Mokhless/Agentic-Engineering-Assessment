@@ -7,7 +7,9 @@ import pandas as pd
 import pytest
 
 from retention.config import load_settings
+from retention.domain.errors import CurationError
 from retention.service.metrics import (
+    check_senior_levels,
     compute_hire_outcomes,
     compute_regretted_turnover,
     compute_retention_cohorts,
@@ -112,6 +114,29 @@ def test_senior_objective_only_for_senior_leaders_and_hires_before_2021_are_out(
     assert ("SENIOR_HIRE_12M", "SL") in result
     assert ("SENIOR_HIRE_12M", "MGR") not in result
     assert ("NEW_HIRE_6M", "OLD") not in result  # 2020 hires are history only (D-23)
+
+
+def test_senior_levels_come_from_the_settings_d94():
+    # If the business decides Managers are senior too, only settings.yaml changes.
+    settings = SETTINGS.model_copy(deep=True)
+    settings.metrics.senior_levels = ["Senior Leader", "Manager"]
+    table = compute_hire_outcomes(
+        connect(
+            employee("MGR", "2022-03-01"), employee("IC", "2022-03-01", career_level="Individual Contributor")
+        ),
+        settings,
+    )
+    senior = set(table[table["objective_id"] == "SENIOR_HIRE_12M"]["employee_id"])
+    assert senior == {"MGR"}
+
+
+def test_a_senior_level_that_does_not_exist_stops_the_run():
+    known = ["Individual Contributor", "Manager", "Senior Leader"]
+    check_senior_levels(["Senior Leader"], known)  # fine
+    with pytest.raises(CurationError, match="Senior Leaders"):
+        check_senior_levels(["Senior Leaders"], known)  # a typo would silently give 0 senior hires
+    with pytest.raises(CurationError, match="at least one"):
+        check_senior_levels([], known)
 
 
 def test_excluded_rows_never_appear_and_quarantined_rows_keep_their_status():

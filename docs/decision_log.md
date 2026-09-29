@@ -113,6 +113,7 @@ This log is the source for:
 | D-91 | 17 | Filters a view does not use | Disabled with a tooltip + one visible line; Evidence gets its own objective choice | ✅ Yes |
 | D-92 | 17 | Findings the brief asks for | Segment stability, "what would settle this", data health on Overview, 2021 turnover ramp-up | ✅ Yes |
 | D-93 | 17 | Evidence filter row | Hidden on Evidence; only the note stays (changes D-91 for Evidence) | ✏️ My own answer |
+| D-94 | 17 | Senior definition | Senior career levels are a setting (`metrics.senior_levels`), checked at run time | ✏️ My own answer |
 ---
 
 ## Round 0: How we work
@@ -2227,6 +2228,24 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 - **What it means:** on Evidence the filter row and the segment chips are hidden and only the note shows. Choices are kept: back on another view the row, the chips and the chosen values return. Relationships keeps the D-91 behaviour (disabled filters, Country still active).
 - **Tests (TDD):** the D-91 Evidence UI test now checks the row and chips are hidden, the note text, and that both come back on Overview with the segment still chosen. Written first and seen failing.
 
+### D-94: The senior definition becomes a setting ✏️ (🔁 extends D-14)
+- **What I said:** make the senior levels a setting, so the numbers can follow if the business changes who counts as senior. Only the setting: no dashboard filter.
+- **Evidence shown (company, 2021-2025, 12-month retention):**
+
+| Who counts as senior | Retained | 95% range | Verdict |
+|---|---|---|---|
+| Senior Leader only (today) | 208/266 = 78.2% | 72.9-82.7% | not met |
+| Senior Leader + Manager | 652/802 = 81.3% | 78.5-83.8% | not met |
+| Manager only | 444/536 = 82.8% | 79.4-85.8% | not met |
+
+  The verdict does not depend on the senior definition (useful for the interview).
+- **What it means:**
+  - `config/settings.yaml` `metrics.senior_levels: [Senior Leader]`; `sql/hire_outcomes.sql` uses `list_contains($senior_levels, career_level)` instead of the fixed text.
+  - The metrics step stops with a clear message if a configured level is not a canonical career level (e.g. a typo "Senior Leaders" would otherwise give zero senior hires silently).
+  - Today's numbers are unchanged (default = Senior Leader only).
+- **Not chosen:** a dashboard filter or a "Managers counted as senior" sensitivity variant (more work; not needed before submission).
+- **Tests (TDD, written first and seen failing):** unit 3 (the setting's default; Managers become senior when configured; an unknown or empty level stops the run). Full suite 186 passed.
+
 ---
 
 ## Implementation log
@@ -2437,7 +2456,7 @@ retention serve        -> http://127.0.0.1:8000/  and  /docs
 
 
 ### Step 9: Finish the dashboard (in progress, 2026-09-28)
-**Done so far:** D-88 (segment tooltip), the Step 9 audit, D-90, D-91, D-92, D-93 and three bug fixes (Overview turnover card with a segment, turnover help text, Market signals turnover tile).
+**Done so far:** D-88 (segment tooltip), the Step 9 audit, D-90, D-91, D-92, D-93, D-94 and three bug fixes (Overview turnover card with a segment, turnover help text, Market signals turnover tile).
 **Verified:** `pytest` → **183 passed** (unit 102, API 41, UI 40); `ruff check .` and `ruff format --check .` clean; the browser sweep of 198 states shows no errors; screenshots checked by hand.
 **Issues met:** some files have Windows line endings (CRLF) that Git Bash tools hide; an edit script failed to match until it normalised them. `dashboard/index.html` ended up with mixed endings from earlier edits and is now CRLF again.
 **Next:** further Step 9 requests from me; Step 10 only after I confirm the website is finished (D-89).

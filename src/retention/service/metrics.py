@@ -17,6 +17,7 @@ import duckdb
 import pandas as pd
 
 from retention.config import Settings
+from retention.domain.errors import CurationError
 from retention.repository.sql_repository import register_table, run_sql
 from retention.service.stats import objective_status, wilson_interval
 
@@ -39,9 +40,26 @@ def sql_params(settings: Settings) -> dict:
 # ---------------------------------------------------------------------------------------------
 
 
+def check_senior_levels(senior_levels: list[str], known_levels: list[str]) -> None:
+    """D-94: every configured senior level must be a real canonical career level.
+
+    A typo such as "Senior Leaders" would otherwise give zero senior hires without any error.
+    """
+    if len(senior_levels) == 0:
+        raise CurationError("settings.yaml metrics.senior_levels must list at least one career level (D-94)")
+    for level in senior_levels:
+        if level not in known_levels:
+            raise CurationError(
+                f"settings.yaml metrics.senior_levels: '{level}' is not a career level "
+                f"(known: {', '.join(sorted(known_levels))}) (D-94)"
+            )
+
+
 def compute_hire_outcomes(con: duckdb.DuckDBPyConnection, settings: Settings) -> pd.DataFrame:
     """One row per hire and objective with its outcome (retained / not_retained / immature)."""
-    return run_sql(con, "hire_outcomes", sql_params(settings))
+    params = sql_params(settings)
+    params["senior_levels"] = settings.metrics.senior_levels  # D-94: who counts as senior
+    return run_sql(con, "hire_outcomes", params)
 
 
 def compute_retention_cohorts(

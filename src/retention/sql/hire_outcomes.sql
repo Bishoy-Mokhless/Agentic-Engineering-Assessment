@@ -3,13 +3,15 @@
 -- Input view : employees  (canonical/employees.parquet)
 -- Parameters : $report_start  first hire date that counts (2021-01-01, D-23)
 --              $as_of         data as-of date (2025-12-31); windows ending after it are immature (D-18)
+--              $senior_levels career levels that count as senior (settings.yaml, D-94)
 --
 -- Rules:
 --   D-16  observation_date = hire_date + 6 (or 12) CALENDAR months.
 --         DuckDB moves impossible dates to the month end: 2021-08-31 + 6 months = 2022-02-28.
 --   D-17  a termination ON or BEFORE the observation date = not retained, whatever its type.
 --   D-18  observation date after the as-of date = immature (no outcome yet, not in the rate).
---   D-14  SENIOR_HIRE_12M = career_level 'Senior Leader' only (Sr Mgmt already mapped, D-13).
+--   D-14  SENIOR_HIRE_12M = the career levels in $senior_levels; today 'Senior Leader' only
+--         (Sr Mgmt already mapped, D-13). D-94: a setting, so the business can change it.
 --   D-73  INCLUDED rows are the primary population; QUARANTINED rows (unverified exits) are kept
 --         here with their status, so the sensitivity variant can add them back (D-10).
 --         EXCLUDED rows have no usable hire date (D-09) and never appear.
@@ -21,14 +23,14 @@ WITH hires AS (
       AND hire_date >= $report_start
 ),
 
--- One row per hire and objective: every hire is a new hire; only Senior Leaders are senior hires.
+-- One row per hire and objective: every hire is a new hire; only the senior levels are senior hires.
 hire_objectives AS (
     SELECT h.*, 'NEW_HIRE_6M' AS objective_id, CAST(6 AS BIGINT) AS window_months
     FROM hires h
     UNION ALL
     SELECT h.*, 'SENIOR_HIRE_12M' AS objective_id, CAST(12 AS BIGINT) AS window_months
     FROM hires h
-    WHERE h.career_level = 'Senior Leader'
+    WHERE list_contains($senior_levels, h.career_level)
 ),
 
 with_dates AS (

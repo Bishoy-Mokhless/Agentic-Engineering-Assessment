@@ -91,6 +91,8 @@ metrics:                              # Step 4
   report_start: 2021-01-01            # D-23: objectives' effective period starts here; 2020 is history only
   confidence_level: 0.95              # D-33: Wilson intervals
   small_sample_below: 10              # D-78: rows with n < 10 get a small_sample warning
+  senior_levels: [Senior Leader]      # D-14/D-94: career levels that count as senior hires (an assumption to
+                                      # confirm with the business; change here, e.g. [Senior Leader, Manager])
 
 analysis:
   bootstrap_iterations: 1000          # D-33

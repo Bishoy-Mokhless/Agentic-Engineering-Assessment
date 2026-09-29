@@ -19,8 +19,10 @@ import pandas as pd
 from retention.config import Settings
 from retention.domain import schemas
 from retention.repository.curated_repository import CuratedRepository, TableInfo
+from retention.repository.mappings import career_level_lookup
 from retention.repository.sql_repository import open_connection
 from retention.service.metrics import (
+    check_senior_levels,
     compute_hire_outcomes,
     compute_regretted_turnover,
     compute_retention_cohorts,
@@ -40,6 +42,10 @@ def run_metrics(settings: Settings, curated_repo: CuratedRepository, build: Path
     )
     objectives = pd.read_parquet(canonical / "objectives.parquet")
     written = {}
+
+    # 0. The senior definition is a setting (D-94): stop early on a level that does not exist.
+    known_levels = sorted(set(career_level_lookup(settings.paths.mappings).values()))
+    check_senior_levels(settings.metrics.senior_levels, known_levels)
 
     # 1. Hire-level outcomes (feature table).
     hire_outcomes = compute_hire_outcomes(con, settings)

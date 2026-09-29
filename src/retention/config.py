@@ -65,6 +65,7 @@ class MetricsSettings(BaseModel):
     report_start: date  # D-23
     confidence_level: float  # D-33
     small_sample_below: int  # D-78
+    senior_levels: list[str]  # D-14, D-94: career levels that count as senior hires
 
 
 class ObjectiveAnalysis(BaseModel):

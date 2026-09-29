@@ -52,3 +52,8 @@ def test_country_mapping_covers_every_provider_and_country():
     for source in ("hr", "eurostat", "worldbank"):
         canonical = {r["canonical_code"] for r in rows if r["source"] == source}
         assert canonical == set(settings.countries), source
+
+
+def test_senior_levels_are_a_setting_d94():
+    # D-14 assumption, now a setting (D-94): which career levels count as "senior".
+    assert load_settings().metrics.senior_levels == ["Senior Leader"]
