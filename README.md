@@ -212,6 +212,6 @@ Associations are descriptive, never causal (D-63).
 | [`AI_USAGE.md`](AI_USAGE.md) | how AI tools were directed and verified |
 | [`presentation/`](presentation/) | the 16-slide deck for the 15-minute presentation: `deck.pdf` and `deck.pptx` (same slides; the PowerPoint file also has speaker notes with decision numbers and file paths) |
 
-**Effort:** about 30 hours over 4 days.
+**Effort:** about 35 hours over 5 days.
 
 *Asteria Consumer Products, its employees and targets are fictional; the workforce data is synthetic.*

@@ -126,4 +126,4 @@ lines). They are task descriptions and corrections, not one-shot "build it" requ
 - **Statistics on small, dependent samples;** today's APIs return revised values, not historical vintages
   (see the README's limitations).
 
-**Effort:** about 30 hours over 4 days.
+**Effort:** about 35 hours over 5 days.
