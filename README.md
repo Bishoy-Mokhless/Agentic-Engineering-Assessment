@@ -110,7 +110,7 @@ promotion): [`docs/architecture.md`](docs/architecture.md).
 git clone https://github.com/Bishoy-Mokhless/Agentic-Engineering-Assessment.git
 cd Agentic-Engineering-Assessment
 python -m venv .venv
-# Windows (cmd):         .venv\Scripts\activate
+# Windows (cmd):         .venv\Scripts\activate.bat
 # Windows (PowerShell):  .venv\Scripts\Activate.ps1
 # macOS / Linux:         source .venv/bin/activate
 pip install -e ".[dev]"
