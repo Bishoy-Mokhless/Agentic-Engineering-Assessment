@@ -207,7 +207,7 @@ Associations are descriptive, never causal (D-63).
 | [`docs/methodology.md`](docs/methodology.md) | metrics, time alignment, association method, wording rules |
 | [`docs/architecture.md`](docs/architecture.md) | production architecture view |
 | [`AI_USAGE.md`](AI_USAGE.md) | how AI tools were directed and verified |
-| [`presentation/`](presentation/) | the deck for the 15-minute presentation: `index.html` (open in a browser, arrow keys, P prints to PDF) and the same slides as `deck.pptx` |
+| [`presentation/`](presentation/) | the 16-slide deck for the 15-minute presentation: `deck.pdf` and `deck.pptx` (same slides; the PowerPoint file also has speaker notes with decision numbers and file paths) |
 
 **Effort:** about 30 hours over 4 days.
 
