@@ -1,6 +1,6 @@
 """Provider payloads -> source-shaped tables (D-71): one row per observation, provider's own codes.
 
-Spring analogy: a response mapper that turns an external API's JSON into flat DTOs,
+It turns each provider's JSON into flat rows,
 without translating anything yet (translation happens in indicator_curation).
 """
 

@@ -1,7 +1,5 @@
 """Ingest step: bring every source into data/raw and report its status (D-47, D-48, D-62, D-68).
 
-Spring analogy: one Step of a Spring Batch Job.
-
 --refresh : fetch each indicator.
               success -> save a new snapshot                  -> status "fresh"
               failure -> use the last good snapshot instead     -> status "stale"
@@ -33,7 +31,7 @@ Mode = Literal["offline", "refresh"]
 
 
 class SourceClient(Protocol):
-    """What every client must offer. Spring analogy: a Java interface both clients implement."""
+    """What every client must offer."""
 
     provider: str
 

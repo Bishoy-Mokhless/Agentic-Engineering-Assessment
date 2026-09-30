@@ -1,7 +1,5 @@
 """Raw layer storage: untouched payloads in dated snapshot folders (D-41, D-48).
 
-Spring analogy: a @Repository, backed by the file system instead of a database.
-
 Layout:
     data/raw/<provider>/<dataset>/<snapshot_id>/payload.json    exactly what the provider returned
     data/raw/<provider>/<dataset>/<snapshot_id>/metadata.json   url, fetch time, retries, sha256, ...

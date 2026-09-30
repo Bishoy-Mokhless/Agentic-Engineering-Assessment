@@ -1,4 +1,4 @@
-"""API tests through FastAPI's TestClient (D-44). Spring analogy: MockMvc / @WebMvcTest.
+"""API tests through FastAPI's TestClient (D-44).
 
 The real offline pipeline builds the data once into a temp folder; every endpoint is then called
 like a browser would. No network: offline replay data only.

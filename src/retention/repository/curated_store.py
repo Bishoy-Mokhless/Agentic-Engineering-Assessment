@@ -1,7 +1,5 @@
 """Read-only access to the published curated layers, for the API (D-05, D-44).
 
-Spring analogy: a read-only @Repository used by the @RestControllers.
-
 Files are read on every request. They are small (< 100 KB each) and this way the API always
 serves the latest published build: after `retention run` swaps a new build in, the next request
 sees it, with no restart and no cache to invalidate.

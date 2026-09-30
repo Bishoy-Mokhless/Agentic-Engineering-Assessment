@@ -2246,6 +2246,16 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 - **Not chosen:** a dashboard filter or a "Managers counted as senior" sensitivity variant (more work; not needed before submission).
 - **Tests (TDD, written first and seen failing):** unit 3 (the setting's default; Managers become senior when configured; an unknown or empty level stops the run). Full suite 186 passed.
 
+### D-95: Submission hardening after a reviewer-style pass ✏️
+- **What I said:** review the whole submission as a tech lead, a data reviewer and HR would, then do the three cheap fixes: a lock file, line-ending rules, and removing the "Spring analogy" comments from the code.
+- **Found while fixing (a real bug):** the HR files were committed with converted line endings (Git's `core.autocrlf` on Windows), so the committed `employee_lifecycle_events.csv` did not match the SHA-256 in the manifest (`1038403…` instead of `9397a89…`). A reviewer on macOS or Linux would have got the converted files, the checksum check would have marked the HR source *unavailable*, and `retention run` would have stopped. It only worked here because Windows converts the files back on checkout.
+- **What changed:**
+  - `.gitattributes`: text files stored with LF; `data/**` and `tests/fixtures/**` stored byte-for-byte (no conversion), so every committed data file matches its recorded checksum on any platform; images, PDF, PPTX and Parquet marked binary.
+  - `requirements.lock`: the exact package versions this project was built and tested with (`pyproject.toml` keeps the ranges). README shows how to install from it.
+  - The 84 "Spring analogy" comments (written while I was learning the Python stack) removed from `src/`, `tests/`, `config/` and `pyproject.toml`; where a comment also carried real information, that information was kept in plain words. My private study copies keep the analogies.
+- **Not changed:** any code or logic. Only comments, docstrings and line endings.
+- **Verified:** `ruff check`, `ruff format --check`, full `pytest` (186 passed); the committed HR files now hash to the manifest values.
+
 ---
 
 ## Implementation log

@@ -1,0 +1,12 @@
+# Text files are stored with LF line endings, whatever the editor's platform.
+* text=auto eol=lf
+
+# Raw and curated data are kept byte-for-byte: their SHA-256 checksums are verified on every run.
+data/** -text
+tests/fixtures/** -text
+
+# Binary files
+*.png binary
+*.pdf binary
+*.pptx binary
+*.parquet binary

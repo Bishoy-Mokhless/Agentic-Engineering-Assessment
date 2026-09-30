@@ -1,6 +1,5 @@
 """Errors that stop a pipeline run with a clear message.
 
-Spring analogy: custom RuntimeExceptions that a @ControllerAdvice would turn into a clean error.
 The job catches PipelineError, logs the message, keeps the previous curated outputs, and exits with 1.
 """
 

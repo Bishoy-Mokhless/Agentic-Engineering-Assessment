@@ -1,7 +1,6 @@
 """Run the metric SQL files with DuckDB on Parquet tables (D-03, D-41).
 
-Spring analogy: a @Repository using JdbcTemplate, with the queries kept in .sql resource files
-(like queries in src/main/resources) so they can be read and reviewed on their own.
+The queries are kept in .sql files (src/retention/sql/) so they can be read and reviewed on their own.
 
 Example:
     con = open_connection({"employees": Path("data/curated/canonical/employees.parquet")})

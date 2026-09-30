@@ -1,7 +1,5 @@
 """Schema contracts for the source-shaped and canonical tables (D-46, D-61).
 
-Spring analogy: Bean Validation (@NotNull, @Pattern) for whole tables.
-
 D-61: these check STRUCTURE only: columns exist, types, allowed codes, keys are unique.
 Business rules (duplicates, bad dates, unverified exits...) are in service/hr_curation.py,
 because the data is intentionally imperfect and those rows must be flagged, not rejected.

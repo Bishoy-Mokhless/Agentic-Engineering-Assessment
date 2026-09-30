@@ -7,7 +7,7 @@ next to four official labour-market and economic signals, showing what can and c
 - **Emphasis:** Software (maintainable layers, API, packaging, tests across service and UI, accessible dashboard).
 - **Stack:** Python 3.11, pandas, DuckDB (SQL on Parquet), FastAPI, plain HTML/JS + Chart.js, pytest + Playwright.
 - **Every decision** (options, choice, reason) is recorded in [`docs/decision_log.md`](docs/decision_log.md)
-  as D-00 … D-94; code comments point to those numbers.
+  as D-00 … D-95; code comments point to those numbers.
 
 ---
 
@@ -116,6 +116,9 @@ python -m venv .venv
 pip install -e ".[dev]"
 python -m playwright install chromium        # only for the UI tests
 ```
+
+The `pyproject.toml` ranges allow newer versions. To install the exact versions this project was built and tested with, use
+`pip install -r requirements.lock` followed by `pip install -e . --no-deps`.
 
 ## 5. Run
 

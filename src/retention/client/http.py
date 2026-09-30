@@ -1,7 +1,4 @@
-"""Shared HTTP layer: timeouts + retry with exponential backoff (D-47).
-
-Spring analogy: a configured RestTemplate with a Spring Retry policy.
-"""
+"""Shared HTTP layer: timeouts + retry with exponential backoff (D-47)."""
 
 from __future__ import annotations
 

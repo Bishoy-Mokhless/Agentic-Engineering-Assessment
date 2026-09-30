@@ -1,7 +1,5 @@
 """Analyse step: as-of join + association analysis -> analytical layer (D-28..D-31, D-54..D-56, D-79).
 
-Spring analogy: one Step of a Spring Batch Job; it only orchestrates.
-
 Reads, from the SAME build: canonical/indicators and analytical/retention_cohorts + regretted_turnover.
 Writes:
     aligned_observations   one row per objective x country x period x indicator: the value known on

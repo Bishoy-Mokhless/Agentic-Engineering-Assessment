@@ -1,7 +1,7 @@
 """Curate step: raw -> source-shaped -> canonical (D-41, D-61, D-71..D-74).
 
-Spring analogy: one Step of a Spring Batch Job; it only orchestrates.
-The rules are in service/, the storage in repository/, the contracts in domain/schemas.py.
+It only orchestrates: the rules are in service/, the storage in repository/,
+the contracts in domain/schemas.py.
 
 Order:
     1. HR pack      -> source_shaped/hr_events, hr_objectives

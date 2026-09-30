@@ -1,6 +1,6 @@
 """Curated layers storage: build in a temp folder, then swap into place (D-41, D-48, D-74).
 
-Spring analogy: a @Repository that writes files, with a "transaction": nothing is visible
+It works like a transaction: nothing is visible
 until publish(), and a failed run leaves the previous outputs untouched.
 
     data/.tmp/<run_id>/source_shaped/*.parquet   <- written during the run

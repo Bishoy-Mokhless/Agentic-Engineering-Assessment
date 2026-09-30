@@ -1,7 +1,5 @@
 """World Bank API v2 client (D-27).
 
-Spring analogy: a Feign client for one external API.
-
 The World Bank answers with a 2-item JSON list:
     [ {"page": 1, "pages": 1, ...},                                   <- paging metadata
       [ {"countryiso3code": "GRC", "date": "2025", "value": 2.1}, ...] ]   <- observations

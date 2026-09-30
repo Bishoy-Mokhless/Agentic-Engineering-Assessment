@@ -1,6 +1,5 @@
 """UI test setup (D-45): build the data once, start the real server in a background thread.
 
-Spring analogy: @SpringBootTest(webEnvironment = RANDOM_PORT) + Selenium, with Playwright as the browser.
 Needs the browser once: `python -m playwright install chromium`.
 """
 

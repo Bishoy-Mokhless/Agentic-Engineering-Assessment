@@ -1,13 +1,12 @@
 """Temporal alignment: which indicator values each objective row may see (D-28..D-31, D-36..D-38).
 
-Spring analogy: a @Service; the join itself is SQL (sql/as_of_join.sql).
-
 Step 1 builds the "analysis units" (one row per objective x country x period) with an as-of date:
     NEW_HIRE_6M       country x hire quarter   as-of = first day of the hire quarter    (D-28)
     SENIOR_HIRE_12M   country x hire year      as-of = 1 January of the hire year       (D-36)
                       country x hire quarter   descriptive only, to show the noise      (D-36)
     REGRETTED_TURNOVER_12M  country x December TTM  as-of = start of the 12-month window (D-37, D-38)
 Step 2 joins each unit to the latest indicator values already published on that date.
+The join itself is SQL (sql/as_of_join.sql).
 """
 
 from __future__ import annotations

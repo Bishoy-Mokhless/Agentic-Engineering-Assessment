@@ -1,7 +1,5 @@
 """Metrics step: canonical -> analytical (D-03, D-41, D-77).
 
-Spring analogy: one Step of a Spring Batch Job; it only orchestrates.
-
 Reads the canonical tables built earlier in the SAME run (inside the build folder, not yet
 published), and writes three analytical tables:
     hire_outcomes       one row per hire and objective (feature table; the API filters it, D-77)

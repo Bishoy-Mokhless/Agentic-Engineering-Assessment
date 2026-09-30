@@ -1,6 +1,5 @@
 """The pipeline job: runs the steps in order (ingest -> curate -> metrics -> integrate -> analyse).
 
-Spring analogy: a Spring Batch Job.
 Steps: ingest (Step 2), curate (Step 3), metrics (Step 4), analyse (Step 5).
 
 Curated outputs are built in data/.tmp/<run_id>/ and swapped into data/curated/ only when every

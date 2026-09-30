@@ -1,6 +1,5 @@
 """Typed application settings loaded from config/settings.yaml.
 
-Spring analogy: a @ConfigurationProperties class bound from application.yml.
 Pydantic validates the file when it is loaded, so a typo in the YAML fails at startup
 with a clear message instead of later in the pipeline.
 """

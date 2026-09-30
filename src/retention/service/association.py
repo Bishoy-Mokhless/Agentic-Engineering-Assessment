@@ -2,8 +2,6 @@
 
 Decisions: D-32..D-35, D-54..D-56, D-63, D-79, D-80.
 
-Spring analogy: a @Service with pure functions (easy to unit test).
-
 For each objective x indicator, three views of Spearman rank correlation:
     within_country  FORMAL   subtract each country's average first, so only movement over time inside
                              a country is compared (D-54). One Holm family of 4 tests per objective (D-55).

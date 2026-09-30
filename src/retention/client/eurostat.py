@@ -1,7 +1,5 @@
 """Eurostat dissemination API client (D-24, D-25, D-26).
 
-Spring analogy: a Feign client for one external API.
-
 Eurostat answers in "JSON-stat" format. The important parts:
     "id":    ["freq", "unit", "geo", "time"]     names of the dimensions, in order
     "size":  [1, 1, 6, 92]                        how many values each dimension has

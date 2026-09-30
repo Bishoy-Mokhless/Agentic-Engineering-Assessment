@@ -1,8 +1,8 @@
 """The FastAPI application: API under /api, dashboard files at / (D-05, D-44).
 
-Spring analogy: the @SpringBootApplication that wires controllers, advice and static resources.
-    create_app()  -> builds the app (tests call it with their own settings, like @SpringBootTest)
-    retention serve -> runs it with uvicorn (the embedded server, like Tomcat)
+create_app()    -> builds the app: routers, error handlers and the dashboard files
+                   (tests call it with their own settings)
+retention serve -> runs it with uvicorn
 """
 
 from __future__ import annotations

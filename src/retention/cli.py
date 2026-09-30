@@ -1,7 +1,4 @@
-"""Command-line entry point: `retention run` and `retention serve` (D-43).
-
-Spring analogy: the main class / CommandLineRunner of the application.
-"""
+"""Command-line entry point: `retention run` and `retention serve` (D-43)."""
 
 from __future__ import annotations
 
@@ -41,12 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def configure_logging(level: int = logging.INFO) -> None:
-    """D-49: standard logging with levels. Spring analogy: SLF4J/Logback console appender."""
+    """D-49: standard logging with levels."""
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
 
 
 def serve(settings, host: str, port: int) -> int:
-    """Start the API + dashboard with uvicorn (the embedded server, like Tomcat in Spring Boot)."""
+    """Start the API + dashboard with uvicorn."""
     import uvicorn
 
     from retention.api.app import create_app

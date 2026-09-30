@@ -1,7 +1,5 @@
 """Source-shaped indicator rows -> one canonical long table for all indicators.
 
-Spring analogy: a @Service that maps provider DTOs onto our own domain model.
-
 Canonical grain (the key): one row per (indicator, country_code, period).
 Each row keeps what the brief asks for: source, indicator, unit, frequency, period,
 load time and publication status, plus the raw snapshot it came from (lineage, D-74).

@@ -1,7 +1,5 @@
 """Turn errors into clear JSON responses with the right HTTP code (D-44).
 
-Spring analogy: a @ControllerAdvice with @ExceptionHandler methods.
-
 Every error has the same shape, so the dashboard can show it without guessing:
     {"error": {"code": "not_found", "message": "unknown country 'FR' (known: ALL, GR, ...)"}}
 """

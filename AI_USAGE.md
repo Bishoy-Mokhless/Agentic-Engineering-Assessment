@@ -107,6 +107,9 @@ lines). They are task descriptions and corrections, not one-shot "build it" requ
 - **Bugs found in the running product:** a segment with no hires returned HTTP 500; a FastAPI parameter object
   shared between `year_from` and `year_to` made a reversed range return 200; the year filter did not reach the
   headline number and one sentence mixed two time ranges (Step 9 audit). All fixed with regression tests.
+- **Line endings that broke checksums on other platforms (D-95).** Git on Windows had converted the committed HR
+  files, so on macOS or Linux their SHA-256 would not match the manifest and the run would stop. Found in a
+  final reviewer-style pass; fixed with `.gitattributes` (data stored byte-for-byte).
 - **A reverted design.** The D-84 redesign was rolled back (D-85); dark mode was removed (D-83).
 - **Tooling problems:** a silent `pip install` hang (re-run with visible output); schema contracts stopping
   runs on wrong integer types from DuckDB (fixed in SQL); Windows line endings breaking an edit script; a slow

@@ -1,6 +1,6 @@
 """Dependency injection for the routers.
 
-Spring analogy: constructor injection / @Autowired. FastAPI calls these functions for each
+FastAPI calls these functions for each
 request (via Depends) and passes the result into the endpoint function.
 """
 

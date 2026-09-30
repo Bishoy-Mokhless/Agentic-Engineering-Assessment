@@ -1,6 +1,6 @@
 """HR business rules: source-shaped events -> canonical employees + quality issues.
 
-Spring analogy: a @Service with one small method per business rule.
+One small function per business rule.
 D-61: business rules live here in plain Python; Pandera only checks the shape of the result.
 
 Rules, in the order they run:

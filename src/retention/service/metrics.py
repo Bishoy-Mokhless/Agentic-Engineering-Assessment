@@ -1,7 +1,5 @@
 """Objective metrics: SQL counts -> rates, Wilson CIs, targets and status (D-16..D-23, D-75..D-78).
 
-Spring analogy: a @Service that calls the repository (SQL) and applies the presentation rules.
-
 SQL does the counting (who is in the cohort, who stayed, who left, headcounts).
 Python adds, per row:
     rate           retained / n              (turnover: regretted exits / average headcount)

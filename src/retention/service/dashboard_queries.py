@@ -1,7 +1,7 @@
 """The queries behind each API endpoint (D-44, D-77).
 
-Spring analogy: the @Service layer between the @RestControllers (api/routers) and the
-repository (CuratedStore). Controllers stay thin: they read the query parameters and call one
+The service layer between the routers (api/routers) and the repository (CuratedStore).
+Routers stay thin: they read the query parameters and call one
 function here. Validation errors are raised as domain errors and turned into HTTP codes in api/errors.py:
     NotFoundError       -> 404   unknown objective / country / indicator / segment value
     InvalidFilterError  -> 400   e.g. year_from after year_to, badly written segment filter

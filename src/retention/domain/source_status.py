@@ -1,7 +1,4 @@
-"""Status of each data source in a pipeline run (D-62, D-68).
-
-Spring analogy: a small immutable DTO + enum.
-"""
+"""Status of each data source in a pipeline run (D-62, D-68)."""
 
 from __future__ import annotations
 

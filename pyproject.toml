@@ -1,4 +1,4 @@
-# Project definition and dependencies (D-42). Spring analogy: pom.xml.
+# Project definition and dependencies (D-42).
 [build-system]
 requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
@@ -20,11 +20,11 @@ dependencies = [
     "numpy>=1.26",
     "scipy>=1.13",          # D-32: Spearman correlation
     "fastapi>=0.111",       # D-05: API
-    "uvicorn>=0.30",        # server that runs FastAPI (like embedded Tomcat)
+    "uvicorn>=0.30",        # server that runs FastAPI
 ]
 
 [project.optional-dependencies]
-# Dev/test-only libraries. Spring analogy: Maven <scope>test</scope>.
+# Dev/test-only libraries.
 dev = [
     "pytest>=8",
     "httpx>=0.27",            # needed by FastAPI's TestClient
@@ -33,7 +33,7 @@ dev = [
 ]
 
 [project.scripts]
-# D-43: installs the `retention` command. Spring analogy: the jar's main class.
+# D-43: installs the `retention` command.
 retention = "retention.cli:main"
 
 [tool.setuptools.packages.find]

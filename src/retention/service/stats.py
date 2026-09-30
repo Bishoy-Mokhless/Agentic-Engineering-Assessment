@@ -1,7 +1,4 @@
-"""Small statistics helpers for rates (D-33, D-75).
-
-Spring analogy: a stateless utility class.
-"""
+"""Small statistics helpers for rates (D-33, D-75)."""
 
 from __future__ import annotations
 

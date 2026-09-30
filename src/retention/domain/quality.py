@@ -1,7 +1,5 @@
 """Quality flags and metric status for the canonical employee table (D-07..D-14, D-57, D-73).
 
-Spring analogy: enums plus a small lookup table, like an enum with fields in Java.
-
 Every flag says what happens to the row (its "effect") and which decision it comes from.
 The quality report and the dashboard's Trust view read this table, so the explanation
 of each flag lives in exactly one place.

@@ -1,4 +1,4 @@
-# Application settings. Spring analogy: application.yml.
+# Application settings.
 # Decision IDs (D-xx) refer to docs/decision_log.md.
 
 as_of_date: 2025-12-31                # workforce data as-of date (assessment manifest)
