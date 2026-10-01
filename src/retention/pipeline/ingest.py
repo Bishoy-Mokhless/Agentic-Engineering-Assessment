@@ -2,6 +2,7 @@
 
 --refresh : fetch each indicator.
               success -> save a new snapshot                  -> status "fresh"
+                         (latest.json moves only when the whole run succeeded, D-96)
               failure -> use the last good snapshot instead     -> status "stale"
                          (no snapshot at all)                   -> status "unavailable"
 --offline : fetch nothing; use the latest saved snapshot       -> status "replayed"
@@ -115,7 +116,9 @@ def _refresh_one(
         "observation_count": summary.observation_count,
         "latest_source_period": summary.latest_period,
     }
-    path = repo.save_snapshot(indicator.provider, indicator.dataset, snapshot_id, result.body, metadata)
+    path = repo.save_snapshot(
+        indicator.provider, indicator.dataset, snapshot_id, result.body, metadata, promote=False
+    )
 
     # 3. Report it as fresh.
     return SourceStatus(

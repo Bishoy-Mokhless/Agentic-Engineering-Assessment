@@ -2258,6 +2258,75 @@ data/curated/analytical/        metrics, joins, analysis        (gold)
 
 ---
 
+## Round 18: Fixes after an external review (2026-10-01)
+
+- **What I said:** a full review of the submitted repo (`REVIEW.md`, 21 findings, F-01…F-21) found weak failure
+  paths. Fix the code defects and the doc issues on `main`, test everything after each change, and update the
+  docs and the deck for every change. Statistics that would change published numbers (F-04, F-06, F-07) are
+  documented as caveats, not recomputed.
+- **How:** each defect was first reproduced with a failing test, then fixed. 24 tests added (186 → 210).
+
+### D-96: A refreshed snapshot becomes "latest" only after the whole run succeeded (F-01) ✏️ (🔁 changes D-48)
+- **Problem:** `--refresh` saved the snapshot and moved `latest.json` before the curate step had read it. A
+  provider answering HTTP 200 with changed codes or values made the refresh run fail, and every later offline
+  run failed too, until someone edited `latest.json` by hand.
+- **Fix:** the ingest step saves new snapshots without moving `latest.json`; the job promotes every fresh
+  snapshot only after `publish()` succeeded. A failed run keeps the new download as evidence but leaves the
+  pointer on the last good snapshot.
+- **Tests:** a failed refresh run keeps the pointers; a successful refresh run promotes the new snapshots.
+
+### D-97: A malformed provider answer is a source failure, not a crash (F-02) ✏️ (🔁 extends D-47)
+- **Problem:** only `SourceError` was caught while fetching. A renamed `time` dimension (`ValueError`), a body of
+  `[]` (`AttributeError`) or `null` (`TypeError`) aborted the whole ingest with a traceback; a broken HR manifest
+  did the same.
+- **Fix:** `client/http.read_payload()` turns any structure error while parsing a response into `SourceError`
+  (keeping the retry count), so the stale fallback applies. A manifest that cannot be read raises
+  `HrIntegrityError`, so the HR source becomes *unavailable* with a clear message.
+- **Tests:** 6 malformed Eurostat / World Bank bodies; an unreadable manifest.
+
+### D-98: Publishing moves all layers or none; failed runs are always recorded (F-03) ✏️ (🔁 changes D-48)
+- **Problem:** `publish()` swapped layers one at a time. If canonical failed to move in (e.g. a file held open on
+  Windows), analytical was already from the new run. An unexpected exception also skipped the run summary, so
+  the Trust view kept showing the previous run as succeeded.
+- **Fix:** old layer folders are deleted only after every layer moved in; if any move fails, the layers already
+  swapped are moved back. Unexpected exceptions now write a *failed* run summary before the traceback. The
+  docstring states the remaining limit honestly: during each two-rename swap a reader can briefly find a layer
+  missing (the API then answers 503); versioned folders with one pointer would remove it (next step).
+- **Not chosen:** versioned build folders plus a single pointer file: cleaner, but it changes how every reader
+  finds the data; too wide a change after submission.
+- **Tests:** a failed canonical rename leaves all three layers on the previous run; an unexpected error still
+  writes `outcome: failed`.
+
+### D-99: Smaller fixes and documented caveats from the review ✏️
+- **F-12** dashboard: a missing Holm p showed as "Association (not causal)" (`null < 0.05` is true in JavaScript);
+  it now shows "Could not be computed". *UI test.*
+- **F-13** `/api/sources` showed the snapshot of the last attempted run; it now shows the snapshot the served
+  tables were built from (`canonical/_build.json`), and the status only when the last run built that data.
+  *API test.*
+- **F-14** with no data, the Overview now shows the "No data yet" alert instead of empty controls. *UI test.*
+- **F-15** `settings.yaml`: unknown keys are rejected (`extra="forbid"`) and numbers must be in range (e.g.
+  `retries ≥ 0`, `0 < alpha < 1`), so a typo can no longer silently drop the Ireland GDP exclusion. *2 tests.*
+- **F-16** build folders left by an interrupted run are removed when the next run starts. *Test.*
+- **F-18** JSON files are written with LF on every platform, and the committed JSON was converted once, so a
+  rerun on Linux matches the committed files. *Test.* Floating-point statistics can still differ in the last
+  digit across platforms or library builds; this is stated in the README.
+- **F-21** new tests for the HTTP layer: the retry policy, temporary 503s retried and counted, an error that
+  outlasts the retries, a 404 not retried, no connection (a local test server, no internet).
+- **Documents:** Italy added to the inconclusive 2025 countries (F-09); the segment "met" claims marked as
+  descriptive, 9 checks without correction, only Manager survives Bonferroni (F-05); the time-confounder text
+  corrected: time adjustment flips the GDP signs, not unemployment (F-08); `obs_status` is today's status, not
+  the as-of status (F-11); a power statement: with 24–30 rows only |ρ| ≳ 0.6 is detectable, with 108 rows
+  about 0.31 (F-20); statistical caveats on degrees of freedom, repeated GDP values and near-ties (F-04, F-06,
+  F-07); the Power BI serving mode corrected ("Direct Lake" is a Fabric mode).
+- **Not changed (known limits, answered in the interview):** recomputing p-values with corrected degrees of
+  freedom (F-04), collapsing repeated GDP values (F-06), rounding before ranking (F-07): each would change the
+  published statistics, and none changes a conclusion. Three regretted exits removed by the exit-before-hire
+  rule (F-10, 2023 3.36% → 3.62%, no verdict change); config and data located from the source tree (F-19).
+- **Verified:** `ruff check`, `ruff format --check`, full `pytest` (210 passed: unit 126, API 42, UI 42);
+  `retention run` reproduces every committed data file byte for byte.
+
+---
+
 ## Implementation log
 
 ### Step 1: Project skeleton (2026-09-27)

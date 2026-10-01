@@ -74,3 +74,44 @@ def test_worldbank_error_message_is_an_error():
 def test_worldbank_multiple_pages_is_an_error():
     with pytest.raises(SourceError, match="pages"):
         worldbank.parse_payload(json.dumps([{"pages": 2}, []]).encode())
+
+
+# --- F-02 (D-97): a malformed HTTP 200 body is a SourceError, so the stale fallback applies ---
+
+
+def fake_get(body: bytes):
+    from datetime import UTC, datetime
+
+    from retention.client.http import FetchResult
+
+    fetched = datetime(2026, 10, 1, tzinfo=UTC)
+    return lambda *args, **kwargs: FetchResult("https://fake", 200, body, 2, fetched)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"[]",  # a list instead of an object
+        b"null",  # nothing at all
+        # a renamed time dimension
+        json.dumps({"id": ["geo", "period"], "size": [2, 3], "value": {"0": 1.0}}).encode(),
+    ],
+)
+def test_eurostat_malformed_200_body_is_a_source_error(monkeypatch, body):
+    settings = load_settings()
+    monkeypatch.setattr(eurostat, "http_get", fake_get(body))
+    client = eurostat.EurostatClient(None, "https://x/", settings.http, ["EL"])
+    with pytest.raises(SourceError) as exc_info:
+        client.fetch(settings.indicators["unemployment"])
+    assert exc_info.value.retry_count == 2  # the retries already spent are still reported
+
+
+@pytest.mark.parametrize(
+    "body", [b"[[], []]", b'[{"pages": "many"}, []]', b'[{"pages": 1}, [{"value": 1.0}]]']
+)
+def test_worldbank_malformed_200_body_is_a_source_error(monkeypatch, body):
+    settings = load_settings()
+    monkeypatch.setattr(worldbank, "http_get", fake_get(body))
+    client = worldbank.WorldBankClient(None, "https://x/", settings.http, ["GRC"], end_year=2025)
+    with pytest.raises(SourceError):
+        client.fetch(settings.indicators["gdp_growth"])

@@ -114,8 +114,14 @@ analyses**, run to show how their data limitations affect the analysis, not as e
 | | GDP growth (no IE) | 25 | −0.27 | 0.20 | 0.59 |
 
 **Reading:** none of the 12 formal tests shows a clear association after Holm correction. Turnover vs inflation
-is the multiple-comparisons example: p = 0.03 alone, 0.12 after correcting for 4 tests. Unemployment trends
-strongly with time within countries (ρ −0.71), so time is a plausible confounder. This non-finding is also
+is the multiple-comparisons example: p = 0.03 alone, 0.12 after correcting for 4 tests. Most signals trend with
+time within countries (unemployment ρ −0.71), so time is a plausible confounder. Removing the time trend
+(time-adjusted view) barely changes unemployment (−0.10 → −0.11) but flips the sign of the GDP results
+(senior +0.27 → −0.46, turnover −0.27 → +0.36): with these small samples, the direction itself is not stable.
+
+**What the tests could have detected (power):** at 80% power and the strictest Holm level (0.05 / 4), a test
+with n = 108 rows detects |ρ| above about 0.31, with n = 30 about 0.57, and with n = 24 about 0.62. Smaller
+real associations could exist and go unseen; more history per country is the evidence that would settle it. This non-finding is also
 what the data's origin predicts: the brief's generator makes retention depend on hire year, country, business
 unit, level and contract type, not on these indicators.
 
@@ -126,7 +132,7 @@ unit, level and contract type, not on these indicators.
 | Unverified 90-day exits (12) | variant `with_unverified_exits`: counted as real exits (and in headcount) | no verdict changes |
 | Unknown "regretted" (2) | variant `unknown_as_regretted`: worst case | no verdict changes |
 | Senior definition | Senior Leader + Manager instead of Senior Leader only (D-94) | 81.3% vs 78.2%: not met either way |
-| Segment stability | the whole-period verdict per employment type, career level and business unit (D-92; descriptive, many groups) | senior not met in all 6 segments; new-hire inconclusive overall but met for Permanent (88.0%) and Manager (91.1%) |
+| Segment stability | the whole-period verdict per employment type, career level and business unit (D-92; descriptive: 9 segments checked without correction, so a single "met" can be chance; only Manager survives a Bonferroni correction) | senior not met in all 6 segments; new-hire inconclusive overall but met for Permanent (88.0%) and Manager (91.1%) |
 | Year range | the headline is recomputed for the selected hire years (D-90) | e.g. BG 2025: 31 of 33 |
 
 ## 7. Wording rules (D-63)
@@ -144,3 +150,14 @@ Population since 2020 and the early-2021 ramp-up (D-23); unconfirmed assumptions
 fixed-lag approximations and revised values (D-29, D-58); small, dependent samples (7–29 hires per
 country-quarter) and exploratory intervals (D-56); unweighted rows (D-80); a discontinued HICP dataset (D-25);
 Irish GDP (D-59); synthetic data.
+
+**Statistical caveats found in review (no conclusion changes, D-99):**
+- Formal p-values come from SciPy's Spearman test, which assumes n − 2 degrees of freedom; subtracting each
+  country's average uses G − 1 more (G = countries), so the p-values are slightly optimistic (turnover vs
+  inflation: 0.03 → about 0.05; its Holm p 0.12 → about 0.19).
+- Annual GDP repeats the same value across the quarters of a year: the 90 new-hire GDP rows hold only 25
+  distinct country-year values, so its n overstates the information.
+- After subtracting averages, values that should tie can differ in the 16th decimal, which slightly changes
+  the tie ranks: a few ρ values move in the second decimal depending on arithmetic order.
+- `obs_status` (e.g. provisional) is the status in today's API answer, not the status on the as-of date
+  (no historical vintages, D-58).

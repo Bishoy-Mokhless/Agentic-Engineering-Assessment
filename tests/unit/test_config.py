@@ -57,3 +57,46 @@ def test_country_mapping_covers_every_provider_and_country():
 def test_senior_levels_are_a_setting_d94():
     # D-14 assumption, now a setting (D-94): which career levels count as "senior".
     assert load_settings().metrics.senior_levels == ["Senior Leader"]
+
+
+# --- F-15 (D-99): a typo or an impossible value in settings.yaml stops at startup ---
+
+
+def write_settings(tmp_path, change):
+    import yaml
+
+    from retention.config import DEFAULT_SETTINGS_FILE
+
+    data = yaml.safe_load(DEFAULT_SETTINGS_FILE.read_text(encoding="utf-8"))
+    change(data)
+    path = tmp_path / "settings.yaml"
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    return path
+
+
+def test_misspelled_setting_is_rejected(tmp_path):
+    import pytest
+    from pydantic import ValidationError
+
+    def typo(data):  # "exclude_from_analysis" misspelled: the Ireland GDP exclusion (D-59) would be lost
+        data["indicators"]["gdp_growth"]["exclude_from_analyis"] = data["indicators"]["gdp_growth"].pop(
+            "exclude_from_analysis"
+        )
+
+    with pytest.raises(ValidationError, match="exclude_from_analyis"):
+        load_settings(write_settings(tmp_path, typo))
+
+
+def test_impossible_values_are_rejected(tmp_path):
+    import pytest
+    from pydantic import ValidationError
+
+    def negative_retries(data):
+        data["http"]["retries"] = -5
+
+    def alpha_above_one(data):
+        data["analysis"]["alpha"] = 5
+
+    for change in (negative_retries, alpha_above_one):
+        with pytest.raises(ValidationError):
+            load_settings(write_settings(tmp_path, change))

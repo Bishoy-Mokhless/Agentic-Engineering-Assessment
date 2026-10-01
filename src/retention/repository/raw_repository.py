@@ -26,11 +26,18 @@ class RawRepository:
         return self.root / provider
 
     def save_snapshot(
-        self, provider: str, dataset: str, snapshot_id: str, payload: bytes, metadata: dict
+        self,
+        provider: str,
+        dataset: str,
+        snapshot_id: str,
+        payload: bytes,
+        metadata: dict,
+        promote: bool = True,
     ) -> Path:
-        """Write a new snapshot folder, then point latest.json at it.
+        """Write a new snapshot folder and, if `promote`, point latest.json at it.
 
-        Existing snapshots are never overwritten (D-48).
+        Existing snapshots are never overwritten (D-48). The ingest step saves with promote=False:
+        the pipeline job promotes the snapshot only after the whole run succeeded (D-96).
         """
         target = self.dataset_dir(provider, dataset) / snapshot_id
         if target.exists():
@@ -41,14 +48,22 @@ class RawRepository:
         tmp.mkdir(parents=True)
         (tmp / "payload.json").write_bytes(payload)  # exactly the provider's bytes
         metadata_text = json.dumps(metadata, indent=2) + "\n"
-        (tmp / "metadata.json").write_text(metadata_text, encoding="utf-8")
+        (tmp / "metadata.json").write_text(metadata_text, encoding="utf-8", newline="\n")  # LF (D-99)
 
         # 2. ... then rename it in one move, so a crash never leaves a half-written snapshot.
         tmp.rename(target)
 
-        # 3. Point latest.json at the new snapshot.
-        self._set_latest(target.parent, snapshot_id)
+        # 3. Point latest.json at the new snapshot (or leave that to promote(), D-96).
+        if promote:
+            self._set_latest(target.parent, snapshot_id)
         return target
+
+    def promote(self, snapshot_ref: str) -> None:
+        """Make a saved snapshot the current one, e.g. 'eurostat/une_rt_m/20260927T120052Z' (D-96)."""
+        snapshot = self.root / snapshot_ref
+        if not snapshot.is_dir():
+            raise FileNotFoundError(f"cannot promote a snapshot that does not exist: {snapshot}")
+        self._set_latest(snapshot.parent, snapshot.name)
 
     def latest_snapshot(self, provider: str, dataset: str | None = None) -> Path | None:
         """Return the snapshot to use.
@@ -108,5 +123,5 @@ class RawRepository:
     def _set_latest(folder: Path, snapshot_id: str) -> None:
         """Write latest.json via a temp file + swap, so it is never half-written."""
         tmp = folder / "latest.json.tmp"
-        tmp.write_text(json.dumps({"snapshot": snapshot_id}) + "\n", encoding="utf-8")
+        tmp.write_text(json.dumps({"snapshot": snapshot_id}) + "\n", encoding="utf-8", newline="\n")
         os.replace(tmp, folder / "latest.json")

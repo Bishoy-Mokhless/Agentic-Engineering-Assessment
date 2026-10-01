@@ -22,6 +22,24 @@ class SourceError(Exception):
         self.retry_count = retry_count
 
 
+# What reading an unexpected response structure raises (missing keys, a list instead of an object,
+# text instead of a number, ...). The clients turn these into SourceError, so a provider that
+# answers HTTP 200 with a changed format falls back to the last good snapshot (D-97).
+UNEXPECTED_PAYLOAD_ERRORS = (ValueError, KeyError, TypeError, AttributeError, IndexError)
+
+
+def read_payload(result: FetchResult, parse, summarize) -> PayloadSummary:
+    """Parse and summarise a response; any problem with its structure becomes a SourceError."""
+    try:
+        return summarize(parse(result.body))
+    except SourceError as exc:
+        exc.retry_count = result.retry_count
+        raise
+    except UNEXPECTED_PAYLOAD_ERRORS as exc:
+        message = f"unexpected response structure ({type(exc).__name__}: {exc})"
+        raise SourceError(message, retry_count=result.retry_count) from exc
+
+
 @dataclass(frozen=True)
 class FetchResult:
     url: str  # final URL including query string

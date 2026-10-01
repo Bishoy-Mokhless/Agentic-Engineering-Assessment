@@ -46,3 +46,12 @@ def test_altered_hr_file_is_detected(tmp_path):
         f.write("extra line\n")
     with pytest.raises(HrIntegrityError, match="retention_objectives.csv"):
         verify_hr_snapshot(copy)
+
+
+def test_unreadable_hr_manifest_is_an_integrity_error(tmp_path):
+    """F-02 (D-97): a broken manifest makes the HR source unavailable instead of crashing the run."""
+    pack = tmp_path / "2025-12-31"
+    shutil.copytree(hr_pack(), pack)
+    (pack / "assessment_data_manifest.json").write_text("{ not json", encoding="utf-8")
+    with pytest.raises(HrIntegrityError):
+        verify_hr_snapshot(pack)

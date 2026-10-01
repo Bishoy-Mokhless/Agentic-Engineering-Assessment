@@ -1,7 +1,7 @@
 """Curated layers storage: build in a temp folder, then swap into place (D-41, D-48, D-74).
 
-It works like a transaction: nothing is visible
-until publish(), and a failed run leaves the previous outputs untouched.
+It works like a transaction: nothing is visible until publish(), a failed run leaves the
+previous outputs untouched, and publish() moves all layers or none (D-98).
 
     data/.tmp/<run_id>/source_shaped/*.parquet   <- written during the run
     data/.tmp/<run_id>/canonical/*.parquet
@@ -36,10 +36,16 @@ class CuratedRepository:
         self.build_root = build_root  # data/.tmp
 
     def start_build(self, run_id: str) -> Path:
-        """Create an empty build folder for this run, e.g. data/.tmp/run-20260927T120052Z."""
+        """Create an empty build folder for this run, e.g. data/.tmp/run-20260927T120052Z.
+
+        Build folders left behind by an interrupted run (e.g. Ctrl+C) are removed first (D-99).
+        One run at a time is assumed: `retention run` is a single batch command.
+        """
+        if self.build_root.exists():
+            for leftover in self.build_root.iterdir():
+                if leftover.is_dir() and leftover.name.startswith("run-"):
+                    shutil.rmtree(leftover, ignore_errors=True)
         build = self.build_root / run_id
-        if build.exists():
-            shutil.rmtree(build)
         build.mkdir(parents=True)
         return build
 
@@ -64,7 +70,8 @@ class CuratedRepository:
     def write_json(self, build: Path, layer: str, name: str, data: dict) -> None:
         """Write a JSON document (quality report, _build.json) into a layer of the build."""
         path = self.layer_path(build, layer) / f"{name}.json"
-        path.write_text(json.dumps(data, indent=2, default=str) + "\n", encoding="utf-8")
+        text = json.dumps(data, indent=2, default=str) + "\n"
+        path.write_text(text, encoding="utf-8", newline="\n")  # LF on every platform (D-99)
 
     def read_json(self, build: Path, layer: str, name: str) -> dict:
         """Read back a JSON document written earlier in the same build (e.g. canonical/_build.json)."""
@@ -74,31 +81,45 @@ class CuratedRepository:
     def publish(self, build: Path) -> None:
         """Swap every layer of the build into data/curated, then delete the build folder.
 
-        Per layer: move the current folder aside -> move the new one in -> delete the old one.
-        If the move-in fails, the old folder is put back, so readers never see an empty layer.
+        Per layer: move the current folder aside, then move the new one in. The old folders are
+        deleted only after EVERY layer has moved in. If any move fails, the layers already swapped
+        are moved back, so data/curated always holds the layers of one single run (D-98).
+        Each swap is two quick renames; for that instant a reader can find a layer missing, and
+        the API then answers "data not built" (503) instead of mixing two runs.
         """
-        for layer in sorted(self.layer_dirs):
-            new = build / layer
-            if not new.exists():
-                continue  # this run did not build that layer (e.g. analytical before Step 4)
-            target = self.layer_dirs[layer]
-            target.parent.mkdir(parents=True, exist_ok=True)
-            previous = build / f"_previous_{layer}"
+        swapped = []  # (layer folder, new folder in the build, previous version) for undo
+        try:
+            for layer in sorted(self.layer_dirs):
+                new = build / layer
+                if not new.exists():
+                    continue  # this run did not build that layer (e.g. analytical before Step 4)
+                target = self.layer_dirs[layer]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                previous = build / f"_previous_{layer}"
 
-            # 1. Move the current version aside (if there is one).
-            if target.exists():
-                target.rename(previous)
-            # 2. Move the new version in; on failure put the old one back.
-            try:
-                new.rename(target)
-            except OSError:
+                # 1. Move the current version aside (if there is one).
+                if target.exists():
+                    target.rename(previous)
+                # 2. Move the new version in; on failure put the old one back.
+                try:
+                    new.rename(target)
+                except OSError:
+                    if previous.exists():
+                        previous.rename(target)
+                    raise
+                swapped.append((target, new, previous))
+        except OSError:
+            # 3a. A later layer failed: undo the layers already swapped, newest first.
+            for target, new, previous in reversed(swapped):
+                target.rename(new)
                 if previous.exists():
                     previous.rename(target)
-                raise
-            # 3. The old version is no longer needed.
+            raise
+
+        # 3b. Every layer moved in: the old versions are no longer needed.
+        for _target, _new, previous in swapped:
             if previous.exists():
                 shutil.rmtree(previous)
-
         shutil.rmtree(build, ignore_errors=True)
 
     @staticmethod

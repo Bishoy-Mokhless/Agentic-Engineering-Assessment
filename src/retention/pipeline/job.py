@@ -89,14 +89,21 @@ def run_pipeline(settings: Settings, mode: Mode) -> int:
 
         # All steps succeeded: make the new outputs visible.
         curated_repo.publish(build)
+        # Only now do freshly downloaded snapshots become "latest" (D-96): a payload that could not
+        # be curated never replaces the last good one for later offline runs.
+        _promote_fresh_snapshots(raw_repo, statuses)
     except (PipelineError, SourceError) as exc:
         curated_repo.discard(build)
         log.error("Run stopped: %s", exc)
         log.error("The previous curated outputs in data/curated were kept unchanged.")
         _finish(settings, run_id, mode, started_at, statuses, "failed", steps, error=str(exc))
         return 1
-    except Exception:
-        curated_repo.discard(build)  # unexpected bug: clean up, then show the full traceback
+    except Exception as exc:
+        # Unexpected bug: clean up, record the failed run for the dashboard, then show the
+        # full traceback (D-98). Without this the Trust view would still show the last success.
+        curated_repo.discard(build)
+        error = f"unexpected error ({type(exc).__name__}): {exc}"
+        _finish(settings, run_id, mode, started_at, statuses, "failed", steps, error=error)
         raise
 
     _finish(settings, run_id, mode, started_at, statuses, "succeeded", steps)
@@ -127,6 +134,13 @@ def _finish(
         steps=steps,
         error=error,
     )
+
+
+def _promote_fresh_snapshots(raw_repo: RawRepository, statuses: list[SourceStatus]) -> None:
+    """Point latest.json at every snapshot downloaded in this (successful) run."""
+    for status in statuses:
+        if status.status == SourceState.FRESH and status.snapshot:
+            raw_repo.promote(status.snapshot)
 
 
 def _row_counts(tables: dict) -> dict[str, int]:

@@ -76,8 +76,8 @@ Each criterion is checkable, and where it is verified is named.
 |---|---|---|
 | AC-1 | One documented command runs the whole pipeline offline from committed snapshots (`retention run`) | README; `tests/api` and `tests/ui` build data with the real offline pipeline |
 | AC-2 | Reruns are deterministic: same inputs → identical outputs (checksums in `_build.json`, fixed seed) | lineage records; D-48, D-74 |
-| AC-3 | Raw snapshots are never overwritten; a failed run leaves `data/curated/` unchanged | `tests/unit/test_raw_and_hr.py` (existing snapshot never overwritten), `test_curate_step.py` (failed run keeps previous outputs) |
-| AC-4 | A source that cannot be fetched falls back to its last good snapshot and is marked *stale*; with no snapshot the run stops with a clear message | `tests/unit/test_ingest.py` |
+| AC-3 | Raw snapshots are never overwritten; a failed run leaves `data/curated/` unchanged, publishes no half-swapped layers and keeps `latest.json` on the last good snapshot | `tests/unit/test_raw_and_hr.py`, `test_curate_step.py` (failed run keeps previous outputs and pointers), `test_curated_repository.py` (publish rolls back) |
+| AC-4 | A source that cannot be fetched, or answers with an unreadable body, falls back to its last good snapshot and is marked *stale*; with no snapshot the run stops with a clear message | `tests/unit/test_ingest.py`, `test_clients.py`, `test_http.py` |
 | AC-5 | Every HR row is accounted for: 2,407 rows = 7 repeats + 2,400 employees, each with a status and flags that name their decision | quality report; `tests/unit/test_hr_curation.py` |
 | AC-6 | All three objectives have n, rate, 95% interval and status per year and for the period; quarters and months have no verdict | `tests/unit/test_metrics.py`, `tests/api` |
 | AC-7 | No aligned row uses an indicator value published after the cohort's as-of date; carried-forward values keep their own period, frequency and age | `tests/unit/test_alignment.py`; schema contract |

@@ -81,7 +81,7 @@ lines). They are task descriptions and corrections, not one-shot "build it" requ
 
 ## 6. How outputs were verified
 
-- **Tests.** 186 tests: unit, API (FastAPI's TestClient on data built by the real offline pipeline) and
+- **Tests.** 210 tests: unit, API (FastAPI's TestClient on data built by the real offline pipeline) and
   Playwright in a real browser. In Steps 2–8 tests were written alongside each step; for all later dashboard
   and data changes (D-84 onwards) tests were written **first and seen failing** before the code.
 - **Tests that can fail.** Two deliberate breakages of the dashboard were introduced to confirm the UI
@@ -110,6 +110,10 @@ lines). They are task descriptions and corrections, not one-shot "build it" requ
 - **Line endings that broke checksums on other platforms (D-95).** Git on Windows had converted the committed HR
   files, so on macOS or Linux their SHA-256 would not match the manifest and the run would stop. Found in a
   final reviewer-style pass; fixed with `.gitattributes` (data stored byte-for-byte).
+- **Failure paths found by an external review (D-96…D-99).** After submission, a review found that a
+  refreshed payload that could not be curated still became `latest`, that malformed provider answers crashed
+  the run instead of falling back, and that publishing was not all-or-nothing across layers. Each was
+  reproduced with a failing test first, then fixed; 24 tests were added.
 - **A reverted design.** The D-84 redesign was rolled back (D-85); dark mode was removed (D-83).
 - **Tooling problems:** a silent `pip install` hang (re-run with visible output); schema contracts stopping
   runs on wrong integer types from DuckDB (fixed in SQL); Windows line endings breaking an edit script; a slow

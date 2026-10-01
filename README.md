@@ -7,7 +7,7 @@ next to four official labour-market and economic signals, showing what can and c
 - **Emphasis:** Software (maintainable layers, API, packaging, tests across service and UI, accessible dashboard).
 - **Stack:** Python 3.11, pandas, DuckDB (SQL on Parquet), FastAPI, plain HTML/JS + Chart.js, pytest + Playwright.
 - **Every decision** (options, choice, reason) is recorded in [`docs/decision_log.md`](docs/decision_log.md)
-  as D-00 … D-95; code comments point to those numbers.
+  as D-00 … D-99; code comments point to those numbers.
 
 ---
 
@@ -76,9 +76,11 @@ Two flows that share only files on disk:
 
 **Reliability:** every run builds in `data/.tmp/<run_id>/` and is swapped into `data/curated/` only if every
 step succeeds (D-48); raw snapshots are never overwritten; each layer has a `_build.json` lineage record
-(run id, inputs and outputs with SHA-256, D-74); `data/curated/run_summary.json` records each run and each
-source's status (fresh / replayed / stale / unavailable, D-62, D-68). A fixed random seed makes reruns
-byte-identical (D-48).
+(run id, inputs and outputs with SHA-256, D-74); `data/curated/run_summary.json` records each run, failed
+ones included, and each source's status (fresh / replayed / stale / unavailable, D-62, D-68). Publishing moves
+all layers or none (D-98), and a newly downloaded snapshot becomes `latest` only after the whole run succeeded
+(D-96). A fixed random seed and LF-only JSON make reruns byte-identical; across operating systems or library
+versions, floating-point statistics can differ in the last digit (D-48, D-99).
 
 **Code layout** (`src/retention/`, organised by layer, D-40):
 
@@ -129,13 +131,14 @@ retention serve            # dashboard at http://127.0.0.1:8000/   API docs at h
 ```
 
 `retention run` takes under a minute and logs every step, the headline verdicts and the formal test results.
-If a source cannot be fetched with `--refresh`, the last good snapshot is used and the source is marked
-*stale*; the run only stops if a source has no usable data at all.
+If a source cannot be fetched with `--refresh`, or answers with a body that cannot be read, the last good
+snapshot is used and the source is marked *stale* (D-97); the run only stops if a source has no usable data
+at all.
 
 ## 6. Tests and checks
 
 ```bash
-pytest                   # everything: 186 tests (unit, API, browser)
+pytest                   # everything: 210 tests (unit, API, browser)
 pytest -m "not ui"       # without the browser tests
 ruff check .             # lint
 ruff format --check .    # formatting
@@ -166,13 +169,17 @@ ruff format --check .    # formatting
 
 1. **Senior-hire retention is not met:** 78.2% (208/266, 95% CI 72.9–82.7%) against ≥ 90%, and not met in
    every hire year 2021–2024. It holds in all 6 segments and if Managers counted as senior (81.3%).
-2. **New-hire retention is inconclusive:** 87.5% (1,579/1,804, CI 85.9–89.0%) against ≥ 86%. It is *met* for
-   Permanent (88.0%) and Manager (91.1%) hires; 148 of 225 early leavers left voluntarily.
+2. **New-hire retention is inconclusive:** 87.5% (1,579/1,804, CI 85.9–89.0%) against ≥ 86%. Descriptively,
+   it is *met* for Permanent (88.0%) and Manager (91.1%) hires, but these come from checking 9 segments without
+   correction: only Manager stays clear after a Bonferroni correction, and Permanent is 81% of all hires.
+   148 of 225 early leavers left voluntarily.
 3. **Regretted turnover is met but rising:** 5.11% in 2025 (82 exits / 1,603 average headcount) against ≤ 7.5%,
-   up from 3.30% in 2024; 2025 country values RO 6.7%, IE 6.3%, BG 6.1% are inconclusive.
+   up from 3.30% in 2024; 2025 country values RO 6.7%, IE 6.3%, BG 6.1% and IT 5.0% are inconclusive.
 4. **Non-finding:** none of the 12 formal within-country tests shows a clear association after Holm
-   correction. Example: turnover vs inflation has raw p = 0.03 but Holm p = 0.12. Unemployment trends
-   strongly with time (ρ −0.71), so time is a plausible confounder (D-79).
+   correction. Example: turnover vs inflation has raw p = 0.03 but Holm p = 0.12. Most signals trend with
+   time within countries (unemployment ρ −0.71), so time is a plausible confounder (D-79); removing the time
+   trend even flips the sign of the GDP results, which shows how fragile these small samples are. With 24–30
+   rows a test could only detect |ρ| above about 0.6, and with 108 rows about 0.3 (at 80% power).
 5. **Data health does not drive the answers:** 12 unverified 90-day exits are quarantined and 10 records
    excluded; counting them, or counting unknown "regretted" values as regretted, changes no verdict.
 
@@ -190,7 +197,10 @@ Associations are descriptive, never causal (D-63).
   measured from source availability, not exact historical release dates; today's APIs return **revised**
   values, not historical vintages (D-29, D-58).
 - **Statistics:** small country-period samples (7–29 hires per country-quarter); rows are not independent, so
-  bootstrap intervals are exploratory (D-56); each row counts once regardless of size (D-80).
+  bootstrap intervals are exploratory (D-56); each row counts once regardless of size (D-80). The formal
+  p-values are slightly optimistic (subtracting country averages uses degrees of freedom that SciPy's p-value
+  does not know about; turnover vs inflation would move from 0.03 to about 0.05), and repeated annual GDP values
+  are not independent rows. No conclusion changes; see `docs/methodology.md` §8.
 - **Sources:** Eurostat `prc_hicp_manr` is discontinued (successor `prc_hicp_minr`, D-25); Irish GDP is
   distorted by multinational accounting, so Ireland is left out of the GDP test and this is reported (D-59).
 - **Next steps:** confirm the assumptions with HR; exit reasons (interviews, surveys) to explain *why* hires

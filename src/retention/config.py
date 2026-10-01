@@ -1,26 +1,34 @@
 """Typed application settings loaded from config/settings.yaml.
 
 Pydantic validates the file when it is loaded, so a typo in the YAML fails at startup
-with a clear message instead of later in the pipeline.
+with a clear message instead of later in the pipeline: unknown keys are rejected and numbers
+must be in range (D-99).
 """
 
 from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SETTINGS_FILE = PROJECT_ROOT / "config" / "settings.yaml"
 
 Frequency = Literal["monthly", "quarterly", "annual"]
 Provider = Literal["eurostat", "worldbank"]
+Probability = Annotated[float, Field(gt=0, lt=1)]
 
 
-class PathSettings(BaseModel):
+class StrictModel(BaseModel):
+    """Every settings block rejects unknown keys, so a misspelled setting is an error, not ignored."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class PathSettings(StrictModel):
     raw: Path
     source_shaped: Path  # D-71
     canonical: Path
@@ -30,15 +38,15 @@ class PathSettings(BaseModel):
     build_tmp: Path  # D-48: temporary build folder
 
 
-class HttpSettings(BaseModel):
+class HttpSettings(StrictModel):
     """D-47: timeouts and retry with exponential backoff for external APIs."""
 
-    timeout_seconds: float
-    retries: int
-    backoff_factor: float
+    timeout_seconds: float = Field(gt=0)
+    retries: int = Field(ge=0)
+    backoff_factor: float = Field(ge=0)
 
 
-class IndicatorSettings(BaseModel):
+class IndicatorSettings(StrictModel):
     """One external indicator (D-24..D-27)."""
 
     provider: Provider
@@ -51,7 +59,7 @@ class IndicatorSettings(BaseModel):
     exclude_from_analysis: list[str] = []
 
 
-class ProviderTerms(BaseModel):
+class ProviderTerms(StrictModel):
     """Licence and attribution shown in the Trust view (brief: source attribution)."""
 
     name: str
@@ -60,33 +68,33 @@ class ProviderTerms(BaseModel):
     attribution: str
 
 
-class MetricsSettings(BaseModel):
+class MetricsSettings(StrictModel):
     report_start: date  # D-23
-    confidence_level: float  # D-33
-    small_sample_below: int  # D-78
-    senior_levels: list[str]  # D-14, D-94: career levels that count as senior hires
+    confidence_level: Probability  # D-33
+    small_sample_below: int = Field(ge=1)  # D-78
+    senior_levels: list[str] = Field(min_length=1)  # D-14, D-94: career levels that count as senior hires
 
 
-class ObjectiveAnalysis(BaseModel):
+class ObjectiveAnalysis(StrictModel):
     role: Literal["primary", "secondary"]  # D-35
     grain: Literal["country_hire_quarter", "country_hire_year", "country_year_end_ttm"]
 
 
-class AnalysisSettings(BaseModel):
-    bootstrap_iterations: int  # D-33
+class AnalysisSettings(StrictModel):
+    bootstrap_iterations: int = Field(ge=1)  # D-33
     random_seed: int  # D-48: deterministic reruns
-    alpha: float  # D-34
+    alpha: Probability  # D-34
     formal_view: Literal["within_country"]  # D-54: only this view enters Holm families
     descriptive_views: list[Literal["pooled", "time_adjusted"]]  # D-54, D-79: context only
     objectives: dict[str, ObjectiveAnalysis]
 
 
-class Settings(BaseModel):
+class Settings(StrictModel):
     as_of_date: date
     countries: list[str]
     paths: PathSettings
     http: HttpSettings
-    publication_lag_months: dict[Frequency, int]  # D-29
+    publication_lag_months: dict[Frequency, Annotated[int, Field(ge=0)]]  # D-29
     providers: dict[Provider, str]
     provider_terms: dict[str, ProviderTerms]
     indicators: dict[str, IndicatorSettings]
@@ -111,5 +119,5 @@ def load_settings(path: Path | None = None) -> Settings:
         absolute_paths[name] = PROJECT_ROOT / relative_path
     data["paths"] = absolute_paths
 
-    # 3. Validate and convert into typed objects (like binding @ConfigurationProperties).
+    # 3. Validate and convert into typed objects.
     return Settings.model_validate(data)

@@ -52,5 +52,7 @@ def write_run_summary(
     # 2. Write to a temp file, then swap it in, so readers never see a half-written file.
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    tmp.write_text(
+        json.dumps(summary, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )  # LF everywhere (D-99)
     os.replace(tmp, path)

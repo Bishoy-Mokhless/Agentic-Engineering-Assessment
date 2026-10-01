@@ -470,3 +470,41 @@ def test_turnover_explains_the_early_2021_ramp_up(page: Page, server_url):
     expect(meaning).to_contain_text("ramp-up")
     page.select_option("#f-from", "2023")
     expect(meaning).not_to_contain_text("ramp-up")
+
+
+def test_landing_page_says_no_data_instead_of_showing_empty_controls(page: Page, server_url):
+    """F-14 (D-99): with no built data, the Overview itself explains what to do."""
+    page.route(
+        re.compile(r".*/api/filters$"),
+        lambda route: route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"error": {"code": "data_not_built", "message": "run `retention run` first"}}',
+        ),
+    )
+    page.goto(server_url + "/#overview")
+    message = page.locator("#overview-message")
+    expect(message).to_contain_text("No data yet")
+    expect(message).to_have_attribute("role", "alert")
+    expect(page.locator("#filters")).to_be_hidden()
+
+
+def test_a_test_without_holm_p_is_shown_as_not_computed(page: Page, server_url):
+    """F-12 (D-99): a missing Holm p must not read as an association (null < 0.05 is true in JS)."""
+    import json
+
+    def missing_p(route):
+        answer = route.fetch().json()
+        for row in answer["rows"]:
+            target = row["objective_id"] == "NEW_HIRE_6M" and row["indicator"] == "unemployment"
+            if row["is_formal"] and target:
+                row["p_value"] = row["p_holm"] = row["rho"] = None
+                row["result"] = "Could not be computed (too few rows or no variation)."
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(answer))
+
+    page.route(re.compile(r".*/api/association(\?.*)?$"), missing_p)
+    open_dashboard(page, server_url)
+    page.click("#tab-challenge")
+    table = page.locator("#panel-challenge table").first
+    expect(table).to_contain_text("Could not be computed")
+    expect(table).not_to_contain_text("Association (not causal)")

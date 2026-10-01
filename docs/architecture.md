@@ -18,7 +18,7 @@ same SQL. This is a design view; nothing here is deployed.
 | Schema contracts | Pandera checks before each write (`domain/schemas.py`) | Delta schema enforcement + expectations (e.g. **Delta Live Tables expectations** or Great Expectations) with the same rules |
 | All-or-nothing publish | build in `data/.tmp/<run_id>/`, swap only if every step succeeds | write Gold in one transaction per table, or build into staging tables and swap / `RESTORE` on failure (Delta time travel) |
 | Lineage | `_build.json` per layer (run id, inputs, outputs, SHA-256) | **Unity Catalog lineage** + a run-audit table with the same fields |
-| Serving | FastAPI (`api/`) reading Parquet | **Power BI** on the Gold tables (Direct Lake / import); the API remains optional for other consumers |
+| Serving | FastAPI (`api/`) reading Parquet | **Power BI** on the Gold tables (import mode, or DirectQuery through a Databricks SQL warehouse), with a dataset refresh triggered by the pipeline after the gold publish; the API remains optional for other consumers |
 | Dashboard | HTML + Chart.js (`dashboard/`) | **Power BI report** with the same views: Overview, Objective detail, Market signals, Relationships, Evidence |
 
 ## 2. Diagram

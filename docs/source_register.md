@@ -116,8 +116,8 @@ approximations measured from source availability, not exact historical release d
 | Mode | Behaviour | Status |
 |---|---|---|
 | `retention run` (default, offline) | uses the snapshot named in `latest.json`; no network | `replayed` |
-| `retention run --refresh`, success | new dated snapshot folder (never overwrites), `latest.json` moved | `fresh` |
-| `--refresh`, fetch failed | timeouts + 3 retries with backoff (D-47); then the last good snapshot | `stale` (run continues, warning) |
+| `retention run --refresh`, success | new dated snapshot folder (never overwrites); `latest.json` moves to it only after the whole run succeeded (D-96) | `fresh` |
+| `--refresh`, fetch failed or unreadable body | timeouts + 3 retries with backoff (D-47); an HTTP 200 with a changed or broken structure counts as a failure (D-97); then the last good snapshot | `stale` (run continues, warning) |
 | no snapshot at all | - | `unavailable` (run stops, previous outputs kept) |
 
 ## Known limitations of the sources
@@ -126,7 +126,8 @@ approximations measured from source availability, not exact historical release d
   as-of join approximates "what was known then" (D-58).
 - **Lags are fixed per frequency,** not exact per-release dates.
 - **`prc_hicp_manr` is discontinued** (successor documented above); `jvs_q_nace2` may be frozen too.
-- **Job vacancies are not seasonally adjusted** and include provisional values.
+- **Job vacancies are not seasonally adjusted** and include provisional values. The provisional flag is the
+  status in today's API answer, not the status on each cohort's as-of date (no vintages).
 - **Irish GDP** is not a local economic-cycle measure (handled as above).
 - **The HR data is synthetic.** Inspecting how the brief's generator builds it shows retention depends on hire
   year, country, business unit, level and contract type, not on these indicators, so a non-finding is the

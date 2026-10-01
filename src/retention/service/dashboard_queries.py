@@ -730,11 +730,25 @@ def quality(store: CuratedStore) -> dict:
 
 
 def sources(store: CuratedStore, settings: Settings) -> dict:
-    """Provider, dataset, licence, cadence, freshness and coverage per source (brief: source attribution)."""
+    """Provider, dataset, licence, cadence, freshness and coverage per source (brief: source attribution).
+
+    The snapshot shown is the one the SERVED tables were built from (canonical/_build.json). The status
+    and fetch time come from the last run only if that run built the served data: after a failed run
+    they would describe data that is not on screen (D-99).
+    """
+    build = store.document("canonical", "_build")
+    served_snapshot = {}
+    for item in build["inputs"]:
+        snapshot = item["snapshot"]
+        if item["source"] == "hr":  # one input per HR file: keep the pack folder, e.g. "hr/2025-12-31"
+            snapshot = "/".join(snapshot.split("/")[:2])
+        served_snapshot.setdefault(item["source"], snapshot)
+
     summary = store.run_summary() or {"sources": []}
     status_by_source = {}
-    for source in summary["sources"]:
-        status_by_source[source["indicator"]] = source
+    if summary.get("run_id") == build["run_id"]:
+        for source in summary["sources"]:
+            status_by_source[source["indicator"]] = source
 
     report = store.document("canonical", "quality_report")
     coverage_by_indicator = {}
@@ -770,7 +784,7 @@ def sources(store: CuratedStore, settings: Settings) -> dict:
                 "terms_url": terms.terms_url,
                 "attribution": terms.attribution,
                 "status": status.get("status"),
-                "snapshot": status.get("snapshot"),
+                "snapshot": served_snapshot.get(name),
                 "fetched_at": status.get("loaded_at"),
                 "latest_period": status.get("source_period"),
                 "provider_last_updated": coverage[0]["source_last_updated"] if coverage else None,
@@ -797,7 +811,7 @@ def sources(store: CuratedStore, settings: Settings) -> dict:
             "terms_url": hr_terms.terms_url,
             "attribution": hr_terms.attribution,
             "status": hr_status.get("status"),
-            "snapshot": hr_status.get("snapshot"),
+            "snapshot": served_snapshot.get("hr"),
             "fetched_at": None,
             "latest_period": hr_status.get("source_period"),
             "provider_last_updated": None,

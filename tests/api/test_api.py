@@ -315,3 +315,26 @@ def test_nothing_built_gives_503_with_a_hint_and_health_says_no_data(empty_clien
 
 def test_api_docs_are_generated(client):
     assert client.get("/openapi.json").status_code == 200
+
+
+def test_sources_show_the_lineage_of_the_served_data_after_a_failed_run(tmp_path):
+    """F-13 (D-99): a failed later run must not relabel the data being served."""
+    import json
+
+    settings = temp_settings(tmp_path)
+    assert run_pipeline(settings, "offline") == 0
+    summary_path = settings.paths.canonical.parent / "run_summary.json"
+    served = json.loads(summary_path.read_text(encoding="utf-8"))
+    served_snapshot = {s["indicator"]: s["snapshot"] for s in served["sources"]}["unemployment"]
+
+    failed = dict(served, run_id="run-failed", outcome="failed")
+    failed["sources"] = [
+        dict(s, status="stale", snapshot="eurostat/une_rt_m/NEWER") for s in served["sources"]
+    ]
+    summary_path.write_text(json.dumps(failed), encoding="utf-8")
+
+    client = TestClient(create_app(settings, dashboard_dir=None))
+    sources = {s["indicator"]: s for s in get_ok(client, "/api/sources")["sources"]}
+    assert sources["unemployment"]["snapshot"] == served_snapshot  # what the served tables were built from
+    assert sources["unemployment"]["status"] != "stale"  # the failed run's status is not the served data's
+    assert sources["hr_pack"]["snapshot"] == "hr/2025-12-31"

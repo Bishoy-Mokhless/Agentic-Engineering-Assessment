@@ -37,11 +37,15 @@ def verify_hr_snapshot(folder: Path) -> tuple[dict, list[FileCheck]]:
     manifest_path = folder / MANIFEST_NAME
     if not manifest_path.exists():
         raise HrIntegrityError(f"manifest not found: {manifest_path}")
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        entries = list(manifest["files"])
+    except (ValueError, KeyError, TypeError) as exc:  # unreadable or changed manifest (D-97)
+        raise HrIntegrityError(f"manifest cannot be read: {exc}") from exc
 
     # 2. For each file: compute its SHA-256 fingerprint and size, compare with the manifest.
     checks = []
-    for entry in manifest["files"]:
+    for entry in entries:
         path = folder / entry["name"]
         if not path.exists():
             raise HrIntegrityError(f"file listed in manifest is missing: {path.name}")

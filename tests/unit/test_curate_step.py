@@ -161,3 +161,85 @@ def test_failed_run_keeps_previous_outputs(settings, monkeypatch):
     summary = read_json(settings.paths.canonical.parent / "run_summary.json")
     assert summary["outcome"] == "failed" and "simulated failure" in summary["error"]
     assert list(settings.paths.build_tmp.iterdir()) == []  # the half-built folder was removed
+
+
+# --- F-01 (D-96): a refreshed snapshot becomes "latest" only after the whole run succeeded ---
+
+
+class ReplayAsFreshClient:
+    """Answers a refresh with the bytes of the current snapshot, as if the provider had just sent them."""
+
+    def __init__(self, raw_repo, provider, second):
+        self.raw_repo, self.provider, self.second = raw_repo, provider, second
+
+    def fetch(self, indicator):
+        from datetime import UTC, datetime
+
+        from retention.client.http import FetchResult, PayloadSummary
+
+        snapshot = self.raw_repo.latest_snapshot(self.provider, indicator.dataset)
+        meta = self.raw_repo.read_metadata(snapshot)
+        fetched = datetime(2026, 10, 1, 0, 0, self.second, tzinfo=UTC)
+        result = FetchResult("https://fake", 200, self.raw_repo.read_payload(snapshot), 0, fetched)
+        return result, PayloadSummary(meta["observation_count"], meta["latest_source_period"])
+
+
+def refresh_setup(settings, tmp_path, monkeypatch):
+    """Copy the real raw folder to a temp folder and answer every fetch from it."""
+    import shutil
+
+    from retention.pipeline import ingest
+    from retention.repository.raw_repository import RawRepository
+
+    raw = tmp_path / "raw"
+    shutil.copytree(settings.paths.raw, raw)
+    settings.paths.raw = raw
+    repo = RawRepository(raw)
+    clients = {
+        "eurostat": ReplayAsFreshClient(repo, "eurostat", 1),
+        "worldbank": ReplayAsFreshClient(repo, "worldbank", 2),
+    }
+    monkeypatch.setattr(ingest, "build_clients", lambda _settings: clients)
+    return raw
+
+
+def latest_pointers(raw):
+    return {p.parent.name: read_json(p)["snapshot"] for p in raw.glob("*/*/latest.json")}
+
+
+def test_failed_refresh_run_keeps_latest_pointing_at_the_last_good_snapshot(settings, tmp_path, monkeypatch):
+    raw = refresh_setup(settings, tmp_path, monkeypatch)
+    before = latest_pointers(raw)
+
+    def broken_curate(*args, **kwargs):
+        raise CurationError("simulated: the new payload cannot be curated")
+
+    monkeypatch.setattr(job, "run_curate", broken_curate)
+    assert run_pipeline(settings, "refresh") == 1
+
+    assert latest_pointers(raw) == before  # the next offline run still uses the last good data
+    # the new download is kept as evidence
+    assert (raw / "eurostat" / "une_rt_m" / "20261001T000001Z").is_dir()
+
+
+def test_successful_refresh_run_promotes_the_new_snapshots(settings, tmp_path, monkeypatch):
+    raw = refresh_setup(settings, tmp_path, monkeypatch)
+    assert run_pipeline(settings, "refresh") == 0
+    pointers = latest_pointers(raw)
+    assert pointers["une_rt_m"] == "20261001T000001Z"
+    assert pointers["NY.GDP.MKTP.KD.ZG"] == "20261001T000002Z"
+
+
+def test_unexpected_error_still_records_a_failed_run(settings, monkeypatch):
+    """F-03 (D-98): a bug outside the expected errors is still written to run_summary.json."""
+    run_pipeline(settings, "offline")
+
+    def buggy_metrics(*args, **kwargs):
+        raise RuntimeError("simulated programming bug")
+
+    monkeypatch.setattr(job, "run_metrics", buggy_metrics)
+    with pytest.raises(RuntimeError):
+        run_pipeline(settings, "offline")
+
+    summary = read_json(settings.paths.canonical.parent / "run_summary.json")
+    assert summary["outcome"] == "failed" and "simulated programming bug" in summary["error"]

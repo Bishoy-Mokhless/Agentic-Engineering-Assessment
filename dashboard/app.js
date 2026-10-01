@@ -2043,7 +2043,7 @@ async function loadChallenge(myLoad) {
     { label: "Bootstrap 95% (exploratory), scale −1 to +1", format: (row) => ciBar(row) },
     { label: "p", numeric: true, format: (row) => num(row.p_value, 2) },
     { label: "Holm p", numeric: true, format: (row) => num(row.p_holm, 2) },
-    { label: "Result", format: (row) => (row.p_holm < alpha ? "Association (not causal)" : "No clear association") },
+    { label: "Result", format: (row) => formalResult(row, alpha) },
   ], formal, () => "formal");
   const more = el("details");
   more.appendChild(el("summary", "Show the " + descriptive.length + " descriptive views (pooled and time-adjusted, not formal tests)"));
@@ -2335,14 +2335,35 @@ function licenceCell(row) {
 // Start
 // ---------------------------------------------------------------------------------------------
 
+/** Result wording for one formal test. In JavaScript `null < 0.05` is true, so check for a missing p first (D-99). */
+function formalResult(row, alpha) {
+  if (row.p_holm === null || row.p_holm === undefined) {
+    return "Could not be computed";
+  }
+  return row.p_holm < alpha ? "Association (not causal)" : "No clear association";
+}
+
+/** No data at all: say so on the landing view too, instead of showing empty controls (D-99). */
+function showNoData(error) {
+  const text = errorText(error);
+  showMessage("overview", "error", text);
+  showMessage("explore", "error", text);
+  for (const child of byId("panel-overview").children) {
+    if (child.id !== "overview-message") {
+      child.hidden = true;
+    }
+  }
+  byId("explore-content").hidden = true;
+  byId("filters").hidden = true;
+}
+
 async function init() {
   setupTabs();
   setupSegmentPanel();
   try {
     fillFilters(await fetchJson("/api/filters"));
   } catch (error) {
-    showMessage("explore", "error", errorText(error));
-    byId("explore-content").hidden = true;
+    showNoData(error);
     loadHealth();
     return;
   }

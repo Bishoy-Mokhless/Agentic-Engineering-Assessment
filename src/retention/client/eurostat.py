@@ -13,7 +13,7 @@ import json
 
 import requests
 
-from retention.client.http import FetchResult, PayloadSummary, SourceError, http_get
+from retention.client.http import FetchResult, PayloadSummary, SourceError, http_get, read_payload
 from retention.config import HttpSettings, IndicatorSettings
 
 
@@ -51,8 +51,7 @@ class EurostatClient:
     def fetch(self, indicator: IndicatorSettings) -> tuple[FetchResult, PayloadSummary]:
         url, params = self.build_request(indicator)
         result = http_get(self.session, url, params, self.http)
-        data = parse_payload(result.body)
-        summary = summarize(data)
+        summary = read_payload(result, parse_payload, summarize)  # a malformed body -> SourceError (D-97)
         return result, summary
 
 
